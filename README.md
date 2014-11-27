@@ -51,7 +51,7 @@ Configuration of the redis server
 
 Note that h5pyswmr is expecting a running redis server on
 `localhost:6379` (on Debian based systems, `apt-get install redis-server` is all you need to do).
-These settings are hardcoded but can be modified at run time
+These settings are hard-coded but can be modified at run time
 (a more elegant solution will be provided in future versions):
 
 ```python
