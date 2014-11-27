@@ -15,7 +15,7 @@ if __name__ == '__main__':
     PROJ_PATH = os.path.abspath(os.path.join(HERE, '../..'))
     sys.path.insert(0, PROJ_PATH)
 
-from h5pyswmr.h5pyswmr import File
+from h5pyswmr import File
 
 
 class TestHDF5(unittest.TestCase):
