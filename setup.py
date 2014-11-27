@@ -9,7 +9,7 @@ setup(
     name='h5pySWMR',
     version='0.1dev',
     author='METEOTEST',
-    packages=['h5pyswmr', ],
+    packages=['h5pyswmr', 'h5pyswmr.test'],
     license='LICENSE.txt',
     long_description=open('README.md').read(),
     install_requires=[
