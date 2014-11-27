@@ -25,6 +25,21 @@ A word of **caution**: This is an experimental package. Please test/verify caref
 it in a production environment. Please report bugs and provide feedback.
 
 
+Installation
+------------
+
+Using pip (globally or in a virtualenv):
+```
+$ pip install git+https://github.com/meteotest/h5pySWMR.git
+```
+
+Manually:
+```
+$ git clone https://github.com/meteotest/h5pySWMR.git
+$ python setup.py install
+```
+
+
 Running tests
 -------------
 
