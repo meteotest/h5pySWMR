@@ -31,13 +31,13 @@ Running tests
 To make sure everything works as expected, run the following:
 
 ```
-python h5pyswmr/test/test_parallel.py
+$ python h5pyswmr/test/test_parallel.py
 ```
 
 Prerequisites
 -------------
 
-It probably works with any recent version of Python, h5py and redis. But I've only tested it with
+It probably works with any recent version of Python, h5py, and redis. But I've only tested it with
 Python 2.7/3.4 and the following library versions:
 
 * h5py 2.3.1
@@ -52,7 +52,7 @@ Configuration of the redis server
 Note that `h5pyswmr` is expecting a running redis server on
 `localhost` and port `6379` (on Debian based systems, `apt-get install redis-server` is all you need to do).
 These settings are hardcoded but can be modified at run time
-(a more elegant solution will be provided in future version):
+(a more elegant solution will be provided in future versions):
 
 ```python
 import redis
@@ -62,4 +62,5 @@ from h5pyswmr h5pyswmr
 h5pyswmr.redis_conn = redis.StrictRedis(host='localhost', port=6666, db=0)
 ```
 
-For performance reasons, you may want to keep the redis server on the same machine.
+For performance reasons (after all, hdf5 is all about performance),
+you may want to keep the redis server on the same machine.

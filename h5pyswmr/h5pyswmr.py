@@ -23,7 +23,8 @@ import redis
 from h5pyswmr.locking import redis_lock, acquire_lock, release_lock
 
 # make sure that redis connection do not time out!
-redis_conn = redis.StrictRedis(host='localhost', port=6379, db=0)
+redis_conn = redis.StrictRedis(host='localhost', port=6379, db=0,
+                               decode_responses=True)  # important for Python3
 
 
 def reader(f):
@@ -299,9 +300,6 @@ class Group(Node):
                         raise TypeError('attrs contains an unsupported datatype (must be string or numeric)')
 
             path = dst.name
-
-        # keep track of dataset by creating a record in the sql db.
-        # sql_create_dataset(self.file, path)
 
         return Dataset(self.file, path=path)
 
