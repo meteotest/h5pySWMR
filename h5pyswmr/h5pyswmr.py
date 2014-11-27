@@ -22,7 +22,7 @@ import redis
 
 from h5pyswmr.locking import redis_lock, acquire_lock, release_lock
 
-# make sure that redis connection do not time out!
+# make sure that redis connections do not time out!
 redis_conn = redis.StrictRedis(host='localhost', port=6379, db=0,
                                decode_responses=True)  # important for Python3
 
