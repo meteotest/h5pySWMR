@@ -56,7 +56,7 @@ These settings are hard-coded but can be modified at run time
 
 ```python
 import redis
-from h5pyswmr h5pyswmr
+from h5pyswmr import h5pyswmr
 
 # overwrite redis connection object
 h5pyswmr.redis_conn = redis.StrictRedis(host='localhost', port=6666, db=0,
