@@ -49,8 +49,8 @@ See http://www.h5py.org for h5py requirements (basically NumPy, Cython and the H
 Configuration of the redis server
 ---------------------------------
 
-Note that `h5pyswmr` is expecting a running redis server on
-`localhost` and port `6379` (on Debian based systems, `apt-get install redis-server` is all you need to do).
+Note that h5pyswmr is expecting a running redis server on
+`localhost:6379` (on Debian based systems, `apt-get install redis-server` is all you need to do).
 These settings are hardcoded but can be modified at run time
 (a more elegant solution will be provided in future versions):
 
