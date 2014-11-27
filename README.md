@@ -19,13 +19,12 @@ data = f['/mygroup/mydataset'][:]
 # no need to explicitely close the file (files are opened/closed when accessed)
 ```
 
-Note that HDF5 (and h5py, which is a Python-wrapper of the HDF5 C-library) does not allow parallel
-reading/writing of files, i.e., it is not thread-safe. However, parallel reading is possible (with the restriction
-that files are opened only **after** processes are forked). This package — implementing appropriate synchronization
-algorithms — allows to access (read and write) hdf5 files in a parallel context.
-
-The synchronization algorithm implemented provides "single write multiple read" (SWMR) access
-to HDF5 files. It is basically an implementation of the so-called
+Even though HDF5 (and h5py, which is a Python wrapper of the HDF5 C-library) does not allow parallel reading **and** writing,
+parallel reading is possible (with the restriction
+that files are opened only **after** processes are forked). This allows us — using appropriate synchronization
+techniques — to provide parallel reading and **serialized** writing, i.e., processes (reading or writing)
+are forced to wait while a file is being written to. This is sometimes called "single write multiple read" (SWMR).
+The synchronization algorithm used is basically an implementation of the so-called
 [second readers-writers problem](http://en.wikipedia.org/wiki/Readers%E2%80%93writers_problem#The_second_readers-writers_problem),
 using a [redis](http://www.redis.io)-server for interprocess locking.
 
