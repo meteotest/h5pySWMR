@@ -55,8 +55,6 @@ class TestHDF5(unittest.TestCase):
             dst = hdf5file['/testgrp/dataset{}'.format(i)]
             dst[0:50, ] = i
 
-        print('####################################################')
-
         jobs = []
         writers = []
         for i in range(NO_WORKERS):
@@ -80,5 +78,5 @@ class TestHDF5(unittest.TestCase):
         pass
 
 
-if __name__ == '__main__':
-    unittest.main()
+suite = unittest.TestLoader().loadTestsFromTestCase(TestHDF5)
+unittest.TextTestRunner(verbosity=2).run(suite)
