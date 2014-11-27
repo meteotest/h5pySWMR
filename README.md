@@ -59,7 +59,8 @@ import redis
 from h5pyswmr h5pyswmr
 
 # overwrite redis connection object
-h5pyswmr.redis_conn = redis.StrictRedis(host='localhost', port=6666, db=0)
+h5pyswmr.redis_conn = redis.StrictRedis(host='localhost', port=6666, db=0,
+                                        decode_responses=True)
 ```
 
 For performance reasons (after all, hdf5 is all about performance),
