@@ -28,7 +28,7 @@ The synchronization algorithm used is basically an implementation of the so-call
 [second readers-writers problem](http://en.wikipedia.org/wiki/Readers%E2%80%93writers_problem#The_second_readers-writers_problem),
 using a [redis](http://www.redis.io)-server for interprocess locking.
 
-A word of **caution**: This is an experimental package. Please test/verify carefully before using
+**Caution**: This is an early version. Please test/verify carefully before using
 it in a production environment. Please report bugs and provide feedback.
 
 
