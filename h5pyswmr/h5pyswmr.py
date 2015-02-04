@@ -52,6 +52,8 @@ def reader(f):
             with redis_lock(redis_conn, lock_r):
                 with redis_lock(redis_conn, mutex1):
                     readcount_val = redis_conn.incr(readcount, amount=1)
+                    # TODO if program execution ends here, then readcount is
+                    # never decremented!
                     # logger.debug('readcount incr.: {0}'.format(readcount_val))
                     if readcount_val == 1:
                         # The first reader sets the write lock (if readcount > 1 it
