@@ -14,6 +14,7 @@ methods, otherwise we get a deadlock!
 """
 
 from __future__ import absolute_import
+
 import os
 from functools import wraps
 
@@ -22,7 +23,7 @@ import redis
 
 from h5pyswmr.locking import redis_lock, acquire_lock, release_lock
 
-# make sure that redis connections do not time out!
+# we make sure that redis connections do not time out
 redis_conn = redis.StrictRedis(host='localhost', port=6379, db=0,
                                decode_responses=True)  # important for Python3
 
@@ -34,11 +35,10 @@ def reader(f):
 
     @wraps(f)
     def func_wrapper(self, *args, **kwargs):
-        # problem: the process releasing the 'w' lock may not be the
+        # note that the process releasing the 'w' lock may not be the
         # same as the one that acquired it, so the identifier may have
-        # changed and the lock is never released!!!
+        # changed and the lock is never released!
         # => we use an identifier unique to all readers!
-        # identifier = str(uuid.uuid4())
         identifier = 'id_reader'
 
         # names of locks
@@ -58,27 +58,17 @@ def reader(f):
                     if readcount_val == 1:
                         # The first reader sets the write lock (if readcount > 1 it
                         # is set anyway). This locks out all writers.
-                        # logger.debug("Reader waiting for 'w' lock {0}...".format(identifier))
                         acquire_lock(redis_conn, lock_w, identifier)
-                        # logger.debug("Reader acquired 'w' lock {0}...".format(identifier))
         try:
-            # perform reading
-            # logger.debug("   READING {}... ".format(self.file))
-            result = f(self, *args, **kwargs)
-            # logger.debug("   DONE READING")
+            result = f(self, *args, **kwargs)  # perform reading operation
             return result
         except Exception as e:
             raise e
         finally:
-            # TODO program may still crash / be aborted before counter is
-            # decreased!!
             with redis_lock(redis_conn, mutex1):
                 readcount_val = redis_conn.decr(readcount, amount=1)
-                # logger.debug('readcount decr.: {0}'.format(readcount_val))
-                if readcount_val == 0:
-                    # no readers left, release write lock
+                if readcount_val == 0:  # no readers left => release write lock
                     release_lock(redis_conn, lock_w, identifier)
-                    # logger.debug("Reader released 'w' lock {0}...".format(identifier))
 
     return func_wrapper
 
@@ -91,14 +81,11 @@ def writer(f):
     @wraps(f)
     def func_wrapper(self, *args, **kwargs):
 
-        # problem: the process releasing the 'r' lock may not be the
+        # note that the process releasing the 'r' lock may not be the
         # same as the one that acquired it, so the identifier may have
         # changed and the lock is never released!!!
         # => we use an identifier unique to all writers!
-        # identifier = str(uuid.uuid4())
-        # TODO is the protocol still correct??
         identifier = 'id_writer'
-        # identifier = str(uuid.uuid4())
 
         # names of locks
         mutex2 = 'mutex2__{}'.format(self.file)
@@ -108,27 +95,20 @@ def writer(f):
 
         with redis_lock(redis_conn, mutex2):
             writecount_val = redis_conn.incr(writecount, amount=1)
-            # print('writecount increased: {0}'.format(writecount_val))
             if writecount_val == 1:
-                # print("Writer waiting for 'r' lock {0}...".format(identifier))
                 acquire_lock(redis_conn, lock_r, identifier)  # block potential readers
-                # print("Writer acquired 'r' lock {0}...".format(identifier))
 
         try:
             with redis_lock(redis_conn, lock_w):
-                # perform writing
-                # print("  !!! WRITING... (in the critical section) !!!")
+                # perform writing operation
                 return_val = f(self, *args, **kwargs)
-                # print("      DONE WRITING")
         except Exception as e:
             raise e
         finally:
             with redis_lock(redis_conn, mutex2):
                 writecount_val = redis_conn.decr(writecount, amount=1)
-                # print('writecount decr.: {0}'.format(writecount_val))
                 if writecount_val == 0:
                     release_lock(redis_conn, lock_r, identifier)
-                    # print("Writer released 'r' lock {0}...".format(identifier))
 
         return return_val
 
@@ -350,10 +330,18 @@ class File(Group):
 
     def __init__(self, *args, **kwargs):
         """
+        try to open/create an h5py.File object
+        note that this must be synchronized!
         """
-        # create an h5py.File object
-        with h5py.File(*args, **kwargs) as f:
-            Group.__init__(self, f.filename, '/')
+
+        # this is crucial for the @writer annotation
+        self.file = args[0]
+
+        @writer
+        def init(self):
+            with h5py.File(*args, **kwargs) as f:
+                Group.__init__(self, f.filename, '/')
+        init(self)
 
     def __repr__(self):
         return "<HDF5 File ({0})>".format(self.file)

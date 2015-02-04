@@ -7,7 +7,7 @@ except ImportError:
 
 setup(
     name='h5pySWMR',
-    version='0.1dev',
+    version='0.1',
     author='METEOTEST',
     packages=['h5pyswmr', 'h5pyswmr.test'],
     license='LICENSE.txt',
