@@ -21,7 +21,7 @@ from functools import wraps
 import h5py
 import redis
 
-from h5pyswmr.locking import redis_lock, acquire_lock, release_lock
+from h5pyswmr.locking import redis_lock, acquire_lock, release_lock, LockException
 
 # we make sure that redis connections do not time out
 redis_conn = redis.StrictRedis(host='localhost', port=6379, db=0,
@@ -57,8 +57,9 @@ def reader(f):
                     # logger.debug('readcount incr.: {0}'.format(readcount_val))
                     if readcount_val == 1:
                         # The first reader sets the write lock (if readcount > 1 it
-                        # is set anyway). This locks out all writers.
-                        acquire_lock(redis_conn, lock_w, identifier)
+                        # is already set). This locks out all writers.
+                        if not acquire_lock(redis_conn, lock_w, identifier):
+                            raise LockException("could not acquire write lock {0}".format(lock_w))
         try:
             result = f(self, *args, **kwargs)  # perform reading operation
             return result
@@ -68,7 +69,8 @@ def reader(f):
             with redis_lock(redis_conn, mutex1):
                 readcount_val = redis_conn.decr(readcount, amount=1)
                 if readcount_val == 0:  # no readers left => release write lock
-                    release_lock(redis_conn, lock_w, identifier)
+                    if not release_lock(redis_conn, lock_w, identifier):
+                        raise LockException("write lock {0} was lost".format(lock_w))
 
     return func_wrapper
 
@@ -96,8 +98,8 @@ def writer(f):
         with redis_lock(redis_conn, mutex2):
             writecount_val = redis_conn.incr(writecount, amount=1)
             if writecount_val == 1:
-                acquire_lock(redis_conn, lock_r, identifier)  # block potential readers
-
+                if not acquire_lock(redis_conn, lock_r, identifier):  # block potential readers
+                    raise LockException("could not acquire read lock {0}".format(lock_r))
         try:
             with redis_lock(redis_conn, lock_w):
                 # perform writing operation
@@ -108,7 +110,8 @@ def writer(f):
             with redis_lock(redis_conn, mutex2):
                 writecount_val = redis_conn.decr(writecount, amount=1)
                 if writecount_val == 0:
-                    release_lock(redis_conn, lock_r, identifier)
+                    if not release_lock(redis_conn, lock_r, identifier):
+                        raise LockException("read lock {0} was lost".format(lock_r))
 
         return return_val
 

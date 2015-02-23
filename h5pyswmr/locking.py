@@ -29,10 +29,11 @@ import uuid
 import redis
 
 
-DEFAULT_TIMEOUT = 30  # seconds
+DEFAULT_TIMEOUT = 20  # seconds
+ACQ_TIMEOUT = 10
 
 
-def acquire_lock(conn, lockname, identifier, acq_timeout=DEFAULT_TIMEOUT,
+def acquire_lock(conn, lockname, identifier, acq_timeout=ACQ_TIMEOUT,
                  timeout=DEFAULT_TIMEOUT):
     """
     Wait for and acquire a lock. Returns identifier on success and False
