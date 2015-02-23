@@ -120,17 +120,16 @@ def writer(f):
 
 class Node(object):
 
-    def __init__(self, file, path, attrs=None):
+    def __init__(self, file, path):
         """
         keyword arguments:
 
         file     full path to hdf5 file
         path     full path to the hdf5 node (not to be confused with path of the file)
-        attrs    attributes dictionary
         """
         self.file = file
         self._path = path
-        self._attrs = attrs  # TODO make attrs writable!
+        self.attrs = AttributeManager(self.file, self._path)
 
     @reader
     def __getitem__(self, key):
@@ -151,33 +150,11 @@ class Node(object):
         with h5py.File(self.file, 'r') as f:
             node = f[path]
             if isinstance(node, h5py.Group):
-                return Group(file=self.file, path=path, attrs=dict(node.attrs))
+                return Group(file=self.file, path=path)
             elif isinstance(node, h5py.Dataset):
-                return Dataset(file=self.file, path=path, attrs=dict(node.attrs))
+                return Dataset(file=self.file, path=path)
             else:
                 raise Exception('not implemented!')
-
-    @reader
-    def get_attr(self, key):
-        """
-        Get a value for a key in the hdf5 attributes.
-        Wrapper for the h5py syntax n.attrs[key].
-        """
-
-        with h5py.File(self.file, 'r') as f:
-            node = f[self.path]
-            return node.attrs[key]
-
-    @writer
-    def set_attr(self, key, value):
-        """
-        Get a value for a key in the hdf5 attributes.
-        Wrapper for the h5py syntax n.attrs[key] = value.
-        """
-
-        with h5py.File(self.file, 'r+') as f:
-            node = f[self.path]
-            node.attrs[key] = value
 
     # properties
     ############
@@ -190,24 +167,16 @@ class Node(object):
 
     path = property(get_path, set_path)
 
-    def get_attrs(self):
-        return self._attrs
-
-    def set_attrs(self, attrs):
-        raise AttributeError('attrs is read-only')
-
-    attrs = property(get_attrs, set_attrs)
-
 
 class Group(Node):
     """
     HDF5 group wrapper
     """
 
-    def __init__(self, file, path, attrs=None):
+    def __init__(self, file, path):
         """
         """
-        Node.__init__(self, file, path, attrs)
+        Node.__init__(self, file, path)
 
     def __repr__(self):
         return "<HDF5 Group (path={0})>".format(self.path)
@@ -246,28 +215,18 @@ class Group(Node):
         Keyword arguments are the same as for h5py.create_dataset() (non-keyword
         arguments are not supported), but this method accepts two additional
 
-        Raises a TypeError if *attrs* contains unsupported types (must be a string
-        or numeric type).
-
-        keyword arguments:
-
-        attrs       a dictionary that is used to store hdf5 attributes
-        overwrite   if True, then existing dataset with same name is overwritten.
-                    Otherwise an error is thrown if a dataset with this name
-                    already exists.
+        Args:
+            overwrite: if True, then existing dataset with same name is
+                overwritten. Otherwise an error is thrown if a dataset with this
+                name already exists.
         """
 
-        attrs = kwargs.get('attrs', None)
         overwrite = kwargs.get('overwrite', False)
         name = kwargs['name']
 
         # remove additional arguments because they are not supported by h5py
         try:
             del kwargs['overwrite']
-        except Exception:
-            pass
-        try:
-            del kwargs['attrs']
         except Exception:
             pass
 
@@ -277,13 +236,6 @@ class Group(Node):
             if overwrite and name in group:
                 del group[name]
             dst = group.create_dataset(**kwargs)
-            if attrs is not None:
-                for key in attrs:
-                    try:
-                        dst.attrs[key] = attrs[key]
-                    except TypeError:
-                        raise TypeError('attrs contains an unsupported datatype (must be string or numeric)')
-
             path = dst.name
 
         return Dataset(self.file, path=path)
@@ -355,11 +307,11 @@ class Dataset(Node):
     HDF5 dataset wrapper
     """
 
-    def __init__(self, file, path, attrs=None):
+    def __init__(self, file, path):
         """
         """
 
-        Node.__init__(self, file, path, attrs)
+        Node.__init__(self, file, path)
 
     @reader
     def __getitem__(self, slice):
@@ -375,7 +327,6 @@ class Dataset(Node):
         """
         Broadcasting for datasets. Example: mydataset[0,:] = np.arange(100)
         """
-
         with h5py.File(self.file, 'r+') as f:
             f[self.path][slice] = value
 
@@ -395,3 +346,60 @@ class Dataset(Node):
         raise AttributeError('shape is read-only')
 
     shape = property(get_shape, set_shape)
+
+
+class AttributeManager(object):
+    """
+    """
+
+    def __init__(self, h5file, path):
+        """
+        Args:
+            h5file: file name of hdf5 file
+            path: full path to hdf5 node
+        """
+        self.file = h5file
+        self.path = path
+
+    @reader
+    def __iter__(self):
+        with h5py.File(self.file, 'r') as f:
+            node = f[self.path]
+            for key in node.attrs:
+                yield key
+
+    @reader
+    def keys(self):
+        with h5py.File(self.file, 'r') as f:
+            node = f[self.path]
+            return node.keys()
+
+    @reader
+    def __contains(self, key):
+        with h5py.File(self.file, 'r') as f:
+            node = f[self.path]
+            return key in node.attrs
+
+    @reader
+    def __getitem__(self, key):
+        with h5py.File(self.file, 'r') as f:
+            node = f[self.path]
+            return node.attrs[key]
+
+    @writer
+    def __setitem__(self, key, value):
+        with h5py.File(self.file, 'r+') as f:
+            node = f[self.path]
+            node.attrs[key] = value
+
+    @writer
+    def __delitem__(self, key):
+        with h5py.File(self.file, 'r+') as f:
+            node = f[self.path]
+            del node.attrs[key]
+
+    @reader
+    def get(self, key, defaultvalue):
+        with h5py.File(self.file, 'r') as f:
+            node = f[self.path]
+            return node.get(key, defaultvalue)
