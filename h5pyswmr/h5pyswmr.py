@@ -134,9 +134,9 @@ class Node(object):
     @reader
     def __getitem__(self, key):
         """
-        raises KeyError if object does not exist!
+        Raises:
+            KeyError if object does not exist.
         """
-
         # sometimes the underlying hdf5 C library writes errors to stdout, e.g.,
         # if a path is not found in a file.
         # cf. http://stackoverflow.com/questions/15117128/h5py-in-memory-file-and-multiprocessing-error
@@ -156,26 +156,14 @@ class Node(object):
             else:
                 raise Exception('not implemented!')
 
-    # properties
-    ############
-
-    def get_path(self):
+    @property
+    def path(self):
         return self._path
-
-    def set_path(self, path):
-        raise AttributeError('path is read-only')
-
-    path = property(get_path, set_path)
 
 
 class Group(Node):
-    """
-    HDF5 group wrapper
-    """
 
     def __init__(self, file, path):
-        """
-        """
         Node.__init__(self, file, path)
 
     def __repr__(self):
@@ -183,11 +171,6 @@ class Group(Node):
 
     @writer
     def create_group(self, name):
-        """
-        Creates a new (sub)group with name *name* (relative or absolute path).
-        Returns the new Group object.
-        """
-
         with h5py.File(self.file, 'r+') as f:
             group = f[self.path]
             created_group = group.create_group(name)
@@ -197,11 +180,6 @@ class Group(Node):
 
     @writer
     def require_group(self, name):
-        """
-        Same as create_group(), but raises a TypeError if conflicting object
-        already exists.
-        """
-
         with h5py.File(self.file, 'r+') as f:
             group = f[self.path]
             created_group = group.require_group(name)
@@ -211,28 +189,15 @@ class Group(Node):
 
     @writer
     def create_dataset(self, **kwargs):
-        """
-        Keyword arguments are the same as for h5py.create_dataset() (non-keyword
-        arguments are not supported), but this method accepts two additional
-
-        Args:
-            overwrite: if True, then existing dataset with same name is
-                overwritten. Otherwise an error is thrown if a dataset with this
-                name already exists.
-        """
-
         overwrite = kwargs.get('overwrite', False)
         name = kwargs['name']
-
         # remove additional arguments because they are not supported by h5py
         try:
             del kwargs['overwrite']
         except Exception:
             pass
-
         with h5py.File(self.file, 'r+') as f:
             group = f[self.path]
-
             if overwrite and name in group:
                 del group[name]
             dst = group.create_dataset(**kwargs)
@@ -240,55 +205,39 @@ class Group(Node):
 
         return Dataset(self.file, path=path)
 
+    @writer
+    def require_dataset(self, **kwargs):
+        with h5py.File(self.file, 'r+') as f:
+            group = f[self.path]
+            dst = group.require_dataset(**kwargs)
+            path = dst.name
+        return Dataset(self.file, path=path)
+
     @reader
     def keys(self):
-        """
-        Returns names of all direct sub-nodes, i.e., groups and datasets
-        """
-
         with h5py.File(self.file, 'r') as f:
             return f[self.path].keys()
 
     @reader
     def __contains__(self, key):
-        """
-        Returns True if either the group contains a child node with name 'path',
-        or — if 'path' is an absolute path — if 'path' denotes a node in the whole
-        DB.
-
-        keyword arguments:
-        key    Either an absolute or a relative path
-        """
-
         with h5py.File(self.file, 'r') as f:
             group = f[self.path]
             return key in group
 
     @writer
     def __delitem__(self, key):
-        """
-        Delete an object (dataset or group) from the DB.
-
-        keyword arguments:
-        key    Either an absolute or a relative path
-        """
-
         with h5py.File(self.file, 'r+') as f:
             group = f[self.path]
             del group[key]
 
 
 class File(Group):
-    """
-    Wrapper around the h5py.File class.
-    """
 
     def __init__(self, *args, **kwargs):
         """
         try to open/create an h5py.File object
         note that this must be synchronized!
         """
-
         # this is crucial for the @writer annotation
         self.file = args[0]
 
@@ -303,14 +252,8 @@ class File(Group):
 
 
 class Dataset(Node):
-    """
-    HDF5 dataset wrapper
-    """
 
     def __init__(self, file, path):
-        """
-        """
-
         Node.__init__(self, file, path)
 
     @reader
@@ -318,7 +261,6 @@ class Dataset(Node):
         """
         implement multidimensional slicing for datasets
         """
-
         with h5py.File(self.file, 'r') as f:
             return f[self.path][slice]
 
@@ -330,22 +272,11 @@ class Dataset(Node):
         with h5py.File(self.file, 'r+') as f:
             f[self.path][slice] = value
 
-    # properties
-    ############
-
+    @property
     @reader
-    def get_shape(self):
-        """
-        Returns the shape of a dataset
-        """
-
+    def shape(self):
         with h5py.File(self.file, 'r') as f:
             return f[self.path].shape
-
-    def set_shape(self, shape):
-        raise AttributeError('shape is read-only')
-
-    shape = property(get_shape, set_shape)
 
 
 class AttributeManager(object):
