@@ -247,6 +247,15 @@ class File(Group):
                 Group.__init__(self, f.filename, '/')
         init(self)
 
+    def __enter__(self):
+        """
+        simple context manager (so we can use 'with File() as f')
+        """
+        return self
+
+    def __exit__(self, type, value, tb):
+        pass
+
     def __repr__(self):
         return "<HDF5 File ({0})>".format(self.file)
 
