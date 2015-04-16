@@ -346,7 +346,7 @@ class AttributeManager(object):
         """
         with h5py.File(self.file, 'r') as f:
             node = f[self.path]
-            return node.keys()
+            return node.attrs.keys()
 
     @reader
     def __contains(self, key):
