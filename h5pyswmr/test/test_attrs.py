@@ -21,6 +21,9 @@ from h5pyswmr import File
 
 
 class TestAttrs(unittest.TestCase):
+    """
+    Test hdf5 attributes
+    """
 
     def setUp(self):
         pass
@@ -34,7 +37,6 @@ class TestAttrs(unittest.TestCase):
 
         with File(filename, 'w') as f:
             print("created {0}.".format(filename))
-            # create a dataset
             dst = f.create_dataset(name='/testgrp/dataset', shape=(30, 30))
             dst.attrs['bla'] = 3
 
@@ -47,6 +49,7 @@ class TestAttrs(unittest.TestCase):
         with File(filename, 'a') as f:
             grp = f['/testgrp']
             grp.attrs['bla'] = 3
+            dst = grp.create_dataset(name='dataset2', shape=(30, 30))
             self.assertIn('bla', grp.attrs)
             self.assertEqual(grp.attrs['bla'], 3)
 

@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 
 """
-Wrapper around h5py that synchronizes reading and writing of hdf5 files (parallel
-reading is possible, writing is serialized)
+Wrapper around h5py that synchronizes reading and writing of hdf5 files
+(parallel reading is possible, writing is serialized)
 
-Access to hdf5 files is synchronized by a solution to the readers/writers problem,
-cf. http://en.wikipedia.org/wiki/Readers%E2%80%93writers_problem#The_second_readers-writers_problem
+Access to hdf5 files is synchronized by a solution to the readers/writers
+problem,
+cf. http://en.wikipedia.org/wiki/Readers%E2%80%93writers_problem
+#The_second_readers-writers_problem
 
 !!! IMPORTANT !!!
 Note that the locks used are not recursive/reentrant. Therefore, a synchronized
@@ -21,7 +23,8 @@ from functools import wraps
 import h5py
 import redis
 
-from h5pyswmr.locking import redis_lock, acquire_lock, release_lock, LockException
+from h5pyswmr.locking import (redis_lock, acquire_lock, release_lock,
+                              LockException)
 
 # we make sure that redis connections do not time out
 redis_conn = redis.StrictRedis(host='localhost', port=6379, db=0,
@@ -35,6 +38,9 @@ def reader(f):
 
     @wraps(f)
     def func_wrapper(self, *args, **kwargs):
+        """
+        Wraps reading functions.
+        """
         # note that the process releasing the 'w' lock may not be the
         # same as the one that acquired it, so the identifier may have
         # changed and the lock is never released!
@@ -54,12 +60,13 @@ def reader(f):
                     readcount_val = redis_conn.incr(readcount, amount=1)
                     # TODO if program execution ends here, then readcount is
                     # never decremented!
-                    # logger.debug('readcount incr.: {0}'.format(readcount_val))
                     if readcount_val == 1:
-                        # The first reader sets the write lock (if readcount > 1 it
-                        # is already set). This locks out all writers.
+                        # The first reader sets the write lock (if
+                        # readcount > 1 it is already set). This locks out all
+                        # writers.
                         if not acquire_lock(redis_conn, lock_w, identifier):
-                            raise LockException("could not acquire write lock {0}".format(lock_w))
+                            raise LockException("could not acquire write lock "
+                                                " {0}".format(lock_w))
         try:
             result = f(self, *args, **kwargs)  # perform reading operation
             return result
@@ -70,7 +77,8 @@ def reader(f):
                 readcount_val = redis_conn.decr(readcount, amount=1)
                 if readcount_val == 0:  # no readers left => release write lock
                     if not release_lock(redis_conn, lock_w, identifier):
-                        raise LockException("write lock {0} was lost".format(lock_w))
+                        raise LockException("write lock {0} was lost"
+                                            .format(lock_w))
 
     return func_wrapper
 
@@ -82,6 +90,9 @@ def writer(f):
 
     @wraps(f)
     def func_wrapper(self, *args, **kwargs):
+        """
+        Wraps writing functions.
+        """
 
         # note that the process releasing the 'r' lock may not be the
         # same as the one that acquired it, so the identifier may have
@@ -98,8 +109,10 @@ def writer(f):
         with redis_lock(redis_conn, mutex2):
             writecount_val = redis_conn.incr(writecount, amount=1)
             if writecount_val == 1:
-                if not acquire_lock(redis_conn, lock_r, identifier):  # block potential readers
-                    raise LockException("could not acquire read lock {0}".format(lock_r))
+                # block potential readers
+                if not acquire_lock(redis_conn, lock_r, identifier):
+                    raise LockException("could not acquire read lock {0}"
+                                        .format(lock_r))
         try:
             with redis_lock(redis_conn, lock_w):
                 # perform writing operation
@@ -111,7 +124,8 @@ def writer(f):
                 writecount_val = redis_conn.decr(writecount, amount=1)
                 if writecount_val == 0:
                     if not release_lock(redis_conn, lock_r, identifier):
-                        raise LockException("read lock {0} was lost".format(lock_r))
+                        raise LockException("read lock {0} was lost"
+                                            .format(lock_r))
 
         return return_val
 
@@ -119,13 +133,16 @@ def writer(f):
 
 
 class Node(object):
+    """
+    Wrapper for h5py.Node
+    """
 
     def __init__(self, file, path):
         """
-        keyword arguments:
-
-        file     full path to hdf5 file
-        path     full path to the hdf5 node (not to be confused with path of the file)
+        Args:
+            file: full path to hdf5 file
+            path: full path to the hdf5 node (not to be confused with path of
+                the file)
         """
         self.file = file
         self._path = path
@@ -137,9 +154,10 @@ class Node(object):
         Raises:
             KeyError if object does not exist.
         """
-        # sometimes the underlying hdf5 C library writes errors to stdout, e.g.,
-        # if a path is not found in a file.
-        # cf. http://stackoverflow.com/questions/15117128/h5py-in-memory-file-and-multiprocessing-error
+        # sometimes the underlying hdf5 C library writes errors to stdout,
+        # e.g., if a path is not found in a file.
+        # cf. http://stackoverflow.com/questions/15117128/
+        # h5py-in-memory-file-and-multiprocessing-error
         h5py._errors.silence_errors()
 
         if key.startswith('/'):  # absolute path
@@ -158,10 +176,16 @@ class Node(object):
 
     @property
     def path(self):
+        """
+        wrapper
+        """
         return self._path
 
 
 class Group(Node):
+    """
+    Wrapper for h5py.Group
+    """
 
     def __init__(self, file, path):
         Node.__init__(self, file, path)
@@ -232,6 +256,9 @@ class Group(Node):
 
 
 class File(Group):
+    """
+    Wrapper for h5py.File
+    """
 
     def __init__(self, *args, **kwargs):
         """
@@ -261,6 +288,9 @@ class File(Group):
 
 
 class Dataset(Node):
+    """
+    Wrapper for h5py.Dataset
+    """
 
     def __init__(self, file, path):
         Node.__init__(self, file, path)
@@ -290,6 +320,7 @@ class Dataset(Node):
 
 class AttributeManager(object):
     """
+    Provides same features as AttributeManager from h5py.
     """
 
     def __init__(self, h5file, path):
@@ -310,6 +341,9 @@ class AttributeManager(object):
 
     @reader
     def keys(self):
+        """
+        Returns attribute keys.
+        """
         with h5py.File(self.file, 'r') as f:
             node = f[self.path]
             return node.keys()
@@ -340,6 +374,12 @@ class AttributeManager(object):
 
     @reader
     def get(self, key, defaultvalue):
+        """
+        Return attribute value or return a default value if key is missing.
+        Args:
+            key: attribute key
+            defaultvalue: default value to be returned if key is missing
+        """
         with h5py.File(self.file, 'r') as f:
             node = f[self.path]
             return node.get(key, defaultvalue)
