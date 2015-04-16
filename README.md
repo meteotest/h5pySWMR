@@ -99,11 +99,3 @@ h5pyswmr.redis_conn = redis.StrictRedis(host='localhost', port=6666, db=0,
 
 For performance reasons (after all, hdf5 is all about performance),
 you may want to keep the redis server on the same machine.
-
-
-Known issues
-------------
-
-* Every hdf5 node in h5py has an `attrs` attribute (cf. [documentation](http://docs.h5py.org/en/latest/high/attr.html)).
-  This does not yet work with h5pySWMR. A (not very elegant) workaround is provided through
-  methods `node.get_attr(value)` and `node.set_attr(key, value)`.
