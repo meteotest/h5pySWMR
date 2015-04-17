@@ -51,6 +51,7 @@ class TestAttrs(unittest.TestCase):
             grp.attrs['bla'] = 3
             dst = grp.create_dataset(name='dataset2', shape=(30, 30))
             self.assertIn('bla', grp.attrs)
+            self.assertEqual(['bla'], grp.attrs.keys())
             self.assertEqual(grp.attrs['bla'], 3)
 
     def tearDown(self):

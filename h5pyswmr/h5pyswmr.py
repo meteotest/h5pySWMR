@@ -342,11 +342,11 @@ class AttributeManager(object):
     @reader
     def keys(self):
         """
-        Returns attribute keys.
+        Returns attribute keys (list)
         """
         with h5py.File(self.file, 'r') as f:
             node = f[self.path]
-            return node.attrs.keys()
+            return list(node.attrs.keys())
 
     @reader
     def __contains(self, key):
