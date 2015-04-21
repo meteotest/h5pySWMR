@@ -20,9 +20,9 @@ if __name__ == '__main__':
 from h5pyswmr import File
 
 
-class TestAttrs(unittest.TestCase):
+class TestAPI(unittest.TestCase):
     """
-    Test hdf5 attributes
+    Test h5pyswmr API
     """
 
     def setUp(self):
