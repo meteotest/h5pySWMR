@@ -117,8 +117,8 @@ def writer(f):
             with redis_lock(redis_conn, lock_w):
                 # perform writing operation
                 return_val = f(self, *args, **kwargs)
-        except Exception as e:
-            raise e
+        except:
+            raise
         finally:
             with redis_lock(redis_conn, mutex2):
                 writecount_val = redis_conn.decr(writecount, amount=1)
@@ -241,6 +241,31 @@ class Group(Node):
     def keys(self):
         with h5py.File(self.file, 'r') as f:
             return f[self.path].keys()
+
+    @reader
+    def visit(self, func):
+        """
+        Wrapper around h5py.Group.vist()
+
+        Args:
+            func: a unary function
+        """
+        with h5py.File(self.file, 'r') as f:
+            return f[self.path].visit(func)
+
+    @reader
+    def visititems(self, func):
+        """
+        Wrapper around h5py.Group.visititems()
+
+        Args:
+            func: a 2-ary function
+        """
+        with h5py.File(self.file, 'r') as f:
+            def proxy(path):
+                obj = self[path]
+                return func(path, obj)
+            return self.visit(proxy)
 
     @reader
     def __contains__(self, key):

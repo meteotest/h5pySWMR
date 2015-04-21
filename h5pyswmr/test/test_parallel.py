@@ -37,9 +37,9 @@ class TestHDF5(unittest.TestCase):
         f = File(filename, 'w')
         # create some datasets (to test reading)
         for i in range(NO_WORKERS):
-            f.create_dataset(name='/testgrp/dataset{}'.format(i), data=np.random.random(self.shape).astype(np.float32))
-
-        # raw_input('Press <enter> to start {} reader/writer processes '.format(NO_WORKERS))
+            f.create_dataset(name='/testgrp/dataset{}'.format(i),
+                             data=np.random.random(self.shape)
+                             .astype(np.float32))
 
         def worker_read(i, hdf5file):
             # do some reading
