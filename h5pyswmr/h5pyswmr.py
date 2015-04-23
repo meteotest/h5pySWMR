@@ -278,7 +278,7 @@ class Group(Node):
         """
         with h5py.File(self.file, 'r') as f:
             def proxy(path):
-                obj = f[self.path]
+                obj = self._wrap_class(f[self.path])
                 return func(path, obj)
             return self.visit(proxy)
 
