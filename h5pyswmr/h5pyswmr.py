@@ -167,12 +167,7 @@ class Node(object):
 
         with h5py.File(self.file, 'r') as f:
             node = f[path]
-            if isinstance(node, h5py.Group):
-                return Group(file=self.file, path=path)
-            elif isinstance(node, h5py.Dataset):
-                return Dataset(file=self.file, path=path)
-            else:
-                raise Exception('not implemented!')
+            return self._wrap_class(node)
 
     @property
     def path(self):
@@ -180,6 +175,26 @@ class Node(object):
         wrapper
         """
         return self._path
+
+    def _wrap_class(self, node):
+        """
+        Wraps h5py objects into h5pyswmr objects.
+
+        Args:
+            node: instance of h5py.Group or h5py.Dataset
+
+        Returns:
+            Corresponding object as a h5pyswmr object
+
+        Raises:
+            TypeError if ``obj`` is of unknown type
+        """
+        if isinstance(node, h5py.Group):
+            return Group(file=self.file, path=node.name)
+        elif isinstance(node, h5py.Dataset):
+            return Dataset(file=self.file, path=node.name)
+        else:
+            raise TypeError('not implemented!')
 
 
 class Group(Node):
@@ -263,9 +278,22 @@ class Group(Node):
         """
         with h5py.File(self.file, 'r') as f:
             def proxy(path):
-                obj = self[path]
+                obj = f[self.path]
                 return func(path, obj)
             return self.visit(proxy)
+
+    @reader
+    def items(self):
+        """
+        Returns a generator over (name, value) pairs for objects directly
+        attached to this group. Values for broken soft or external links
+        show up as None.
+        Note that this differs from h5py, where a list (Py2) or a
+        "set-like object" (Py3) is returned instead of a generator.
+        """
+        with h5py.File(self.file, 'r') as f:
+            for name, obj in f[self.path].items():
+                yield (name, self._wrap_class(obj))
 
     @reader
     def __contains__(self, key):

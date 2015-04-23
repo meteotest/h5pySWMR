@@ -93,6 +93,22 @@ class TestAPI(unittest.TestCase):
         with File(self.filename, 'r') as f:
             f.visititems(foo)
 
+    def test_items(self):
+        """
+        Test items() method
+        """
+        # create some groups and datasets
+        with File(self.filename, 'a') as f:
+            g1 = f.create_group('/a/b/g1')
+            f.create_group('/a/b/g2')
+            f.create_group('/a/b/g3')
+            f.create_dataset(name='a/b/g1/dst1', shape=(30, 30))
+            f.create_dataset(name='/a/b/g1/dst2', shape=(30, 30))
+            f.create_dataset(name='/a/b/g2/dst1', shape=(30, 30))
+
+            for key, val in f.items():
+                print(key, val)
+
     def tearDown(self):
         # TODO remove self.filename
         pass
