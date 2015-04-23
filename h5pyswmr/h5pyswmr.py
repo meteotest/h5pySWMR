@@ -277,9 +277,10 @@ class Group(Node):
             func: a 2-ary function
         """
         with h5py.File(self.file, 'r') as f:
-            def proxy(path):
-                obj = self._wrap_class(f[self.path])
-                return func(path, obj)
+            grp = f[self.path]
+            def proxy(name):
+                obj = self._wrap_class(grp[name])
+                return func(name, obj)
             return self.visit(proxy)
 
     @reader
