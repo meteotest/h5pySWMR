@@ -397,7 +397,7 @@ class AttributeManager(object):
         # file is closed while the generator is being traversed.
         with h5py.File(self.file, 'r') as f:
             node = f[self.path]
-            keys = (key for key in node.attrs)
+            keys = [key for key in node.attrs]
 
         return (key for key in keys)
 

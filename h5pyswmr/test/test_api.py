@@ -36,14 +36,21 @@ class TestAPI(unittest.TestCase):
         """
         Test .attrs property
         """
+        attrs = {
+            'bla': 3,
+            'blu': 'asasdfsa'
+        }
         with File(self.filename, 'w') as f:
             dst = f.create_dataset(name='/testgrp/dataset', shape=(30, 30))
-            dst.attrs['bla'] = 3
+            for key, value in attrs.items():
+                dst.attrs[key] = value
 
         with File(self.filename, 'r') as f:
             dst = f['/testgrp/dataset']
             self.assertIn('bla', dst.attrs)
-            self.assertEqual(dst.attrs['bla'], 3)
+            self.assertEqual(dst.attrs['bla'], attrs['bla'])
+            for key in dst.attrs:
+                self.assertIn(key, attrs)
 
         # same test with a group
         with File(self.filename, 'a') as f:
