@@ -287,7 +287,7 @@ class Group(Node):
     @reader
     def items(self):
         """
-        Returns a list of (name, value) pairs for objects directly
+        Returns a list of (name, object) pairs for objects directly
         attached to this group. Values for broken soft or external links
         show up as None.
         Note that this differs from h5py, where a list (Py2) or a
