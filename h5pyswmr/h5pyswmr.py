@@ -287,15 +287,18 @@ class Group(Node):
     @reader
     def items(self):
         """
-        Returns a generator over (name, value) pairs for objects directly
+        Returns a list of (name, value) pairs for objects directly
         attached to this group. Values for broken soft or external links
         show up as None.
         Note that this differs from h5py, where a list (Py2) or a
-        "set-like object" (Py3) is returned instead of a generator.
+        "set-like object" (Py3) is returned.
         """
+        result = []
         with h5py.File(self.file, 'r') as f:
             for name, obj in f[self.path].items():
-                yield (name, self._wrap_class(obj))
+                result.append((name, self._wrap_class(obj)))
+
+        return result
 
     @reader
     def __contains__(self, key):
@@ -389,10 +392,14 @@ class AttributeManager(object):
 
     @reader
     def __iter__(self):
+        # In order to be compatible with h5py, we return a generator.
+        # However, to preserve thread-safety, we must make sure that the hdf5
+        # file is closed while the generator is being traversed.
         with h5py.File(self.file, 'r') as f:
             node = f[self.path]
-            for key in node.attrs:
-                yield key
+            keys = (key for key in node.attrs)
+
+        return (key for key in keys)
 
     @reader
     def keys(self):
@@ -404,7 +411,7 @@ class AttributeManager(object):
             return list(node.attrs.keys())
 
     @reader
-    def __contains(self, key):
+    def __contains__(self, key):
         with h5py.File(self.file, 'r') as f:
             node = f[self.path]
             return key in node.attrs
