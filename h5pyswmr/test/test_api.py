@@ -54,44 +54,44 @@ class TestAPI(unittest.TestCase):
             self.assertEqual(['bla'], grp.attrs.keys())
             self.assertEqual(grp.attrs['bla'], 3)
 
-    def test_visit(self):
-        """
-        Test visiting pattern
-        """
-        # create some groups and datasets
-        with File(self.filename, 'a') as f:
-            g1 = f.create_group('/a/b/g1')
-            f.create_group('/a/b/g2')
-            f.create_group('/a/b/g3')
-            f.create_dataset(name='a/b/g1/dst1', shape=(30, 30))
-            f.create_dataset(name='/a/b/g1/dst2', shape=(30, 30))
-            f.create_dataset(name='/a/b/g2/dst1', shape=(30, 30))
+    # def test_visit(self):
+    #     """
+    #     Test visiting pattern
+    #     """
+    #     # create some groups and datasets
+    #     with File(self.filename, 'a') as f:
+    #         g1 = f.create_group('/a/b/g1')
+    #         f.create_group('/a/b/g2')
+    #         f.create_group('/a/b/g3')
+    #         f.create_dataset(name='a/b/g1/dst1', shape=(30, 30))
+    #         f.create_dataset(name='/a/b/g1/dst2', shape=(30, 30))
+    #         f.create_dataset(name='/a/b/g2/dst1', shape=(30, 30))
 
-        def foo(name):
-            print(name)
+    #     def foo(name):
+    #         print(name)
 
-        with File(self.filename, 'r') as f:
-            f.visit(foo)
+    #     with File(self.filename, 'r') as f:
+    #         f.visit(foo)
 
-    def test_visititems(self):
-        """
-        Test visititems() method
-        """
-        # create some groups and datasets
-        with File(self.filename, 'a') as f:
-            g1 = f.create_group('/a/b/g1')
-            f.create_group('/a/b/g2')
-            f.create_group('/a/b/g3')
-            f.create_dataset(name='a/b/g1/dst1', shape=(30, 30))
-            f.create_dataset(name='/a/b/g1/dst2', shape=(30, 30))
-            f.create_dataset(name='/a/b/g2/dst1', shape=(30, 30))
+    # def test_visititems(self):
+    #     """
+    #     Test visititems() method
+    #     """
+    #     # create some groups and datasets
+    #     with File(self.filename, 'a') as f:
+    #         g1 = f.create_group('/a/b/g1')
+    #         f.create_group('/a/b/g2')
+    #         f.create_group('/a/b/g3')
+    #         f.create_dataset(name='a/b/g1/dst1', shape=(30, 30))
+    #         f.create_dataset(name='/a/b/g1/dst2', shape=(30, 30))
+    #         f.create_dataset(name='/a/b/g2/dst1', shape=(30, 30))
 
-        def foo(name, obj):
-            print(name)
-            print(obj)
+    #     def foo(name, obj):
+    #         print(name)
+    #         print(obj)
 
-        with File(self.filename, 'r') as f:
-            f.visititems(foo)
+    #     with File(self.filename, 'r') as f:
+    #         f.visititems(foo)
 
     def test_items(self):
         """

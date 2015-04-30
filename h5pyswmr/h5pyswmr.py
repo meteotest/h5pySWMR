@@ -257,31 +257,32 @@ class Group(Node):
         with h5py.File(self.file, 'r') as f:
             return f[self.path].keys()
 
-    @reader
-    def visit(self, func):
-        """
-        Wrapper around h5py.Group.vist()
+    # TODO does not yet work because @reader methods are not reentrant!
+    # @reader
+    # def visit(self, func):
+    #     """
+    #     Wrapper around h5py.Group.vist()
 
-        Args:
-            func: a unary function
-        """
-        with h5py.File(self.file, 'r') as f:
-            return f[self.path].visit(func)
+    #     Args:
+    #         func: a unary function
+    #     """
+    #     with h5py.File(self.file, 'r') as f:
+    #         return f[self.path].visit(func)
 
-    @reader
-    def visititems(self, func):
-        """
-        Wrapper around h5py.Group.visititems()
+    # @reader
+    # def visititems(self, func):
+    #     """
+    #     Wrapper around h5py.Group.visititems()
 
-        Args:
-            func: a 2-ary function
-        """
-        with h5py.File(self.file, 'r') as f:
-            grp = f[self.path]
-            def proxy(name):
-                obj = self._wrap_class(grp[name])
-                return func(name, obj)
-            return self.visit(proxy)
+    #     Args:
+    #         func: a 2-ary function
+    #     """
+    #     with h5py.File(self.file, 'r') as f:
+    #         grp = f[self.path]
+    #         def proxy(name):
+    #             obj = self._wrap_class(grp[name])
+    #             return func(name, obj)
+    #         return self.visit(proxy)
 
     @reader
     def items(self):
