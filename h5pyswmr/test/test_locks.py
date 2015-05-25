@@ -40,12 +40,16 @@ class DummyResource(object):
                 while reading. This is useful for testing if the process
                 does clean up its locks.
         """
-        print(u"❤ worker {0} reading!".format(worker_no))
+        pid = os.getpid()
+        print(u"❤ {0}worker {1} (PID {2}) reading!"
+              .format('suicidal ' if suicide else '', worker_no, pid))
         if suicide:
-            print("Worker {0} is committing suicide".format(worker_no))
-            pid = os.getpid()
+            print("✟ Worker {0} (PID {1}) committing suicide..."
+                  .format(worker_no, pid))
             os.kill(pid, signal.SIGTERM)
-        time.sleep(random.random())
+            print("##### I'm dead, this should not show up! #####")
+        else:
+            time.sleep(random.random())
 
     @writer
     def write(self, worker_no):
@@ -65,7 +69,7 @@ class TestLocks(unittest.TestCase):
         """
         Test parallel read/write access
         """
-        NO_WORKERS = 30
+        NO_WORKERS = 1
 
         resource = DummyResource('myresource')
 
@@ -81,10 +85,12 @@ class TestLocks(unittest.TestCase):
             print(u"Worker {0} tries to write...".format(i))
             resource.write(i)
 
+        pid = os.getpid()
+        print("\nMain process has PID {0}".format(pid))
         jobs = []
         print("")
         for i in range(NO_WORKERS):
-            if i % 6 == 0:
+            if i % 6 == 1:
                 p = multiprocessing.Process(target=worker_write, args=(i, resource))
             else:
                 p = multiprocessing.Process(target=worker_read, args=(i, resource))

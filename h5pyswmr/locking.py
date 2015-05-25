@@ -25,6 +25,7 @@ programmers should make sure that clients do not exceed lock timeouts.
 """
 
 import os
+import sys
 import time
 import contextlib
 import uuid
@@ -33,6 +34,8 @@ from functools import wraps
 from collections import defaultdict
 
 import redis
+
+from .exithandler import handle_exit
 
 
 # we make sure that redis connections do not time out
@@ -52,14 +55,27 @@ readers = defaultdict(lambda: 0)
 writers = defaultdict(lambda: 0)
 
 
-def sigterm_handler(_signo, _stack_frame):
+# note that the process releasing the read/write lock may not be the
+# same as the one that acquired it, so the identifier may have
+# changed and the lock is never released!
+# => we use an identifier unique to all readers/writers.
+WRITELOCK_ID = 'id_reader'
+READLOCK_ID = 'id_writer'
+
+
+# TODO this overrides previously registered handlers => it breaks Python's
+# SIGTERM behaviour!
+# Cf. http://code.activestate.com/recipes/577997-handle-exit-context-manager/
+
+def sigterm_handler():
     """
     Code to be executed when process is killed
     """
-    print("cleaning up locks...")
-    print("####################")
-    # print(readers)
-    # print(writers)
+    print("cleaning up locks ###")
+    print("3******************")
+
+    print(readers)
+    print(writers)
     # TODO release all locks whose identifiers start with current PID
     pid = 'pid{0}'.format(os.getpid())
     for key in redis_conn.keys():
@@ -69,7 +85,8 @@ def sigterm_handler(_signo, _stack_frame):
             except KeyError:
                 continue
             release_lock(redis_conn, key, identifier)
-    # TODO decrement readcount and writecount
+            print("Lock {0} released".format(key))
+    # decrement readcount and writecount
     for resource, no_readers in readers.items():
         mutex1 = 'mutex1__{}'.format(resource)
         readcount = 'readcount__{}'.format(resource)
@@ -78,7 +95,7 @@ def sigterm_handler(_signo, _stack_frame):
             with redis_lock(redis_conn, mutex1):
                 readcount_val = redis_conn.decr(readcount, amount=no_readers)
                 if readcount_val == 0:  # no readers left => release write lock
-                    if not release_lock(redis_conn, writelock, identifier):
+                    if not release_lock(redis_conn, writelock, WRITELOCK_ID):
                         # write lock was lost...
                         pass
                         # TODO write log message?
@@ -90,15 +107,12 @@ def sigterm_handler(_signo, _stack_frame):
             writecount_val = redis_conn.decr(writecount, amount=no_writers)
             if writecount_val == 0:
                 # release read lock s.t. readers are allowed
-                if not release_lock(redis_conn, readlock, identifier):
+                if not release_lock(redis_conn, readlock, READLOCK_ID):
                     # read lock was lost...
                     pass
                     # TODO write log message?
 
-
-# TODO this overrides previously registered handlers, e.g., handlers registered
-# by third-party libraries!
-signal.signal(signal.SIGTERM, sigterm_handler)
+# signal.signal(signal.SIGTERM, sigterm_handler)
 
 
 def reader(f):
@@ -111,11 +125,6 @@ def reader(f):
         """
         Wraps reading functions.
         """
-        # note that the process releasing the 'w' lock may not be the
-        # same as the one that acquired it, so the identifier may have
-        # changed and the lock is never released!
-        # => we use an identifier unique to all readers!
-        identifier = 'id_reader'
 
         # names of locks
         mutex3 = 'mutex3__{}'.format(self.file)
@@ -136,19 +145,20 @@ def reader(f):
                         # The first reader sets the write lock (if
                         # readcount_val > 1 it is already set).
                         # This locks out all writers.
-                        if not acquire_lock(redis_conn, writelock, identifier):
+                        if not acquire_lock(redis_conn, writelock, WRITELOCK_ID):
                             raise LockException("could not acquire write lock "
                                                 " {0}".format(writelock))
         try:
             result = f(self, *args, **kwargs)  # perform reading operation
             return result
         finally:
+            print("@reader, finally clause!!!")
             with redis_lock(redis_conn, mutex1):
                 readers[self.file] -= 1
                 assert(readers[self.file] >= 0)
                 readcount_val = redis_conn.decr(readcount, amount=1)
                 if readcount_val == 0:  # no readers left => release write lock
-                    if not release_lock(redis_conn, writelock, identifier):
+                    if not release_lock(redis_conn, writelock, WRITELOCK_ID):
                         raise LockException("write lock {0} was lost"
                                             .format(writelock))
 
@@ -166,12 +176,6 @@ def writer(f):
         Wraps writing functions.
         """
 
-        # note that the process releasing the read lock may not be the
-        # same as the one that acquired it, so the identifier may have
-        # changed and the lock is never released!!!
-        # => we use an identifier unique to all writers!
-        identifier = 'id_writer'
-
         # names of locks
         mutex2 = 'mutex2__{}'.format(self.file)
         # note that writecount may be > 1 as it also counts the waiting writers
@@ -185,7 +189,7 @@ def writer(f):
             writecount_val = redis_conn.incr(writecount, amount=1)
             if writecount_val == 1:
                 # block potential readers
-                if not acquire_lock(redis_conn, readlock, identifier):
+                if not acquire_lock(redis_conn, readlock, READLOCK_ID):
                     raise LockException("could not acquire read lock {0}"
                                         .format(readlock))
         try:
@@ -201,7 +205,7 @@ def writer(f):
                 writecount_val = redis_conn.decr(writecount, amount=1)
                 if writecount_val == 0:
                     # release read lock s.t. readers are allowed
-                    if not release_lock(redis_conn, readlock, identifier):
+                    if not release_lock(redis_conn, readlock, READLOCK_ID):
                         raise LockException("read lock {0} was lost"
                                             .format(readlock))
 
