@@ -36,7 +36,7 @@ def handle_exit(callback=None, append=False):
     executed in this order.
     """
     old_handler = signal.signal(signal.SIGTERM, _sigterm_handler)
-    if (old_handler != signal.SIG_DFL) and (old_handler != _sigterm_handler):
+    if old_handler != signal.SIG_DFL and old_handler != _sigterm_handler:
         if not append:
             raise RuntimeError("there is already a handler registered for "
                                "SIGTERM: %r" % old_handler)
@@ -52,6 +52,7 @@ def handle_exit(callback=None, append=False):
         raise RuntimeError("can't use nested contexts")
     _sigterm_handler.__enter_ctx__ = True
 
+    print("yield")
     try:
         yield
     except KeyboardInterrupt:

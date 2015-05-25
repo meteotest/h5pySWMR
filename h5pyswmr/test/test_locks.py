@@ -60,48 +60,39 @@ class DummyResource(object):
         time.sleep(random.random())
 
 
-class TestLocks(unittest.TestCase):
+def main():
+    """
+    Test parallel read/write access
+    """
 
-    def setUp(self):
-        pass
+    resource = DummyResource('myresource')
 
-    def test_locks(self):
-        """
-        Test parallel read/write access
-        """
-        NO_WORKERS = 1
-
-        resource = DummyResource('myresource')
-
-        def worker_read(i, resource):
-            time.sleep(random.random() * 2)
-            print(u"Worker {0} attempts to read...".format(i))
-            if i % 13 == 0:
-                resource.read(i, suicide=True)
+    def worker_read(i, resource):
+        time.sleep(random.random() * 2)
+        print(u"Worker {0} attempts to read...".format(i))
+        if i % 13 == 1:
+            resource.read(i, suicide=True)
+        else:
             resource.read(i)
 
-        def worker_write(i, resource):
-            time.sleep(random.random() * 2.4)
-            print(u"Worker {0} tries to write...".format(i))
-            resource.write(i)
+    def worker_write(i, resource):
+        time.sleep(random.random() * 2.4)
+        print(u"Worker {0} tries to write...".format(i))
+        resource.write(i)
 
-        pid = os.getpid()
-        print("\nMain process has PID {0}".format(pid))
-        jobs = []
-        print("")
-        for i in range(NO_WORKERS):
-            if i % 6 == 1:
-                p = multiprocessing.Process(target=worker_write, args=(i, resource))
-            else:
-                p = multiprocessing.Process(target=worker_read, args=(i, resource))
-            p.start()
-            jobs.append(p)
-            # p.join()
-
-
-    def tearDown(self):
-        pass
+    pid = os.getpid()
+    print("\nMain process has PID {0}".format(pid))
+    jobs = []
+    NO_WORKERS = 30
+    for i in range(NO_WORKERS):
+        if i % 6 == 1:
+            p = multiprocessing.Process(target=worker_write, args=(i, resource))
+        else:
+            p = multiprocessing.Process(target=worker_read, args=(i, resource))
+        p.start()
+        jobs.append(p)
+        # p.join()
 
 
-suite = unittest.TestLoader().loadTestsFromTestCase(TestLocks)
-unittest.TextTestRunner(verbosity=2).run(suite)
+if __name__ == '__main__':
+    main()
