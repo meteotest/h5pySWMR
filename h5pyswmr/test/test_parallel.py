@@ -77,7 +77,7 @@ class TestHDF5(unittest.TestCase):
 
         # check if file was written correctly
         # wait a few seconds to make sure that all workers are done...
-        time.sleep(5)
+        time.sleep(10)
         for i in writers:
             dst = f['/testgrp/dataset{}'.format(i)]
             self.assertTrue(np.all(dst[0:50, ] == i))

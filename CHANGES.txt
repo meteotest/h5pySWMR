@@ -1,1 +1,19 @@
-v0.1dev, 2014-11-27 -- Initial release.
+Version 0.2
+-----------
+
+Bug fixes:
+
+* Library now processes SIGTERM signals to clean up locks.
+* Small improvements have been made to unit tests.
+* Code has been made more PEP8 compliant.
+
+Features:
+
+None
+
+
+Version 0.1
+-----------
+
+2014-11-27 -- Initial release.
+
