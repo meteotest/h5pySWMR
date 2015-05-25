@@ -41,7 +41,7 @@ redis_conn = redis.StrictRedis(host='localhost', port=6379, db=0,
 
 
 DEFAULT_TIMEOUT = 20  # seconds
-ACQ_TIMEOUT = 10
+ACQ_TIMEOUT = 15
 
 
 # TODO every process should keep track of its readers and writers, so that it
@@ -70,6 +70,30 @@ def sigterm_handler(_signo, _stack_frame):
                 continue
             release_lock(redis_conn, key, identifier)
     # TODO decrement readcount and writecount
+    for resource, no_readers in readers.items():
+        mutex1 = 'mutex1__{}'.format(resource)
+        readcount = 'readcount__{}'.format(resource)
+        writelock = 'writelock__{}'.format(resource)
+        if no_readers > 0:
+            with redis_lock(redis_conn, mutex1):
+                readcount_val = redis_conn.decr(readcount, amount=no_readers)
+                if readcount_val == 0:  # no readers left => release write lock
+                    if not release_lock(redis_conn, writelock, identifier):
+                        # write lock was lost...
+                        pass
+                        # TODO write log message?
+    for resource, no_writers in writers.items():
+        mutex2 = 'mutex2__{}'.format(resource)
+        writecount = 'writecount__{}'.format(resource)
+        readlock = 'readlock__{}'.format(resource)
+        with redis_lock(redis_conn, mutex2):
+            writecount_val = redis_conn.decr(writecount, amount=no_writers)
+            if writecount_val == 0:
+                # release read lock s.t. readers are allowed
+                if not release_lock(redis_conn, readlock, identifier):
+                    # read lock was lost...
+                    pass
+                    # TODO write log message?
 
 
 # TODO this overrides previously registered handlers, e.g., handlers registered
@@ -103,9 +127,9 @@ def reader(f):
         with redis_lock(redis_conn, mutex3):
             with redis_lock(redis_conn, readlock):
                 with redis_lock(redis_conn, mutex1):
-                    readcount_val = redis_conn.incr(readcount, amount=1)
                     readers[self.file] += 1
                     assert(readers[self.file] > 0)
+                    readcount_val = redis_conn.incr(readcount, amount=1)
                     # TODO if program execution ends here, then readcount is
                     # never decremented!
                     if readcount_val == 1:
@@ -120,9 +144,9 @@ def reader(f):
             return result
         finally:
             with redis_lock(redis_conn, mutex1):
-                readcount_val = redis_conn.decr(readcount, amount=1)
                 readers[self.file] -= 1
                 assert(readers[self.file] >= 0)
+                readcount_val = redis_conn.decr(readcount, amount=1)
                 if readcount_val == 0:  # no readers left => release write lock
                     if not release_lock(redis_conn, writelock, identifier):
                         raise LockException("write lock {0} was lost"
@@ -150,14 +174,15 @@ def writer(f):
 
         # names of locks
         mutex2 = 'mutex2__{}'.format(self.file)
+        # note that writecount may be > 1 as it also counts the waiting writers
         writecount = 'writecount__{}'.format(self.file)
         readlock = 'readlock__{}'.format(self.file)
         writelock = 'writelock__{}'.format(self.file)
 
         with redis_lock(redis_conn, mutex2):
-            writecount_val = redis_conn.incr(writecount, amount=1)
             writers[self.file] += 1
-            assert(writers[self.file] == 1)
+            assert(writers[self.file] > 0)
+            writecount_val = redis_conn.incr(writecount, amount=1)
             if writecount_val == 1:
                 # block potential readers
                 if not acquire_lock(redis_conn, readlock, identifier):
@@ -171,9 +196,9 @@ def writer(f):
             raise
         finally:
             with redis_lock(redis_conn, mutex2):
-                writecount_val = redis_conn.decr(writecount, amount=1)
                 writers[self.file] -= 1
                 assert(writers[self.file] == 0)
+                writecount_val = redis_conn.decr(writecount, amount=1)
                 if writecount_val == 0:
                     # release read lock s.t. readers are allowed
                     if not release_lock(redis_conn, readlock, identifier):
@@ -202,7 +227,6 @@ def acquire_lock(conn, lockname, identifier, acq_timeout=ACQ_TIMEOUT,
             released after *ltime* seconds. Make sure your operation does
             not take longer than the timeout!
     """
-
     end = time.time() + acq_timeout
     while end > time.time():
         if conn.setnx(lockname, identifier):
