@@ -32,7 +32,7 @@ class TestHDF5(unittest.TestCase):
 
         tmpdir = tempfile.gettempdir()
 
-        NO_WORKERS = 30
+        NO_WORKERS = 40
         filename = os.path.join(tmpdir, 'parallel_test.h5')
         f = File(filename, 'w')
         # create some datasets (to test reading)
@@ -66,11 +66,11 @@ class TestHDF5(unittest.TestCase):
         writers = []
         print("")
         for i in range(NO_WORKERS):
-            if i < 5 or i % 2 == 0:
-                p = multiprocessing.Process(target=worker_read, args=(i, f))
-            else:
+            if i % 4 == 0:
                 p = multiprocessing.Process(target=worker_write, args=(i, f))
                 writers.append(i)
+            else:
+                p = multiprocessing.Process(target=worker_read, args=(i, f))
             jobs.append(p)
             p.start()
             # p.join()

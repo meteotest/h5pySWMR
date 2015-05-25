@@ -30,6 +30,7 @@ import contextlib
 import uuid
 import signal
 from functools import wraps
+from collections import defaultdict
 
 import redis
 
@@ -43,9 +44,12 @@ DEFAULT_TIMEOUT = 20  # seconds
 ACQ_TIMEOUT = 10
 
 
-# TODO every process should keep track of its owned locks and of its number of
-# readers and writers, so that it can clean things up if a SIGTERM is sent.
-
+# TODO every process should keep track of its readers and writers, so that it
+# can clean things up if a SIGTERM is sent.
+# Note that these mappings are thread-safe because they are protected by a
+# redis lock (cf. code where used).
+readers = defaultdict(lambda: 0)
+writers = defaultdict(lambda: 0)
 
 
 def sigterm_handler(_signo, _stack_frame):
@@ -54,6 +58,18 @@ def sigterm_handler(_signo, _stack_frame):
     """
     print("cleaning up locks...")
     print("####################")
+    # print(readers)
+    # print(writers)
+    # TODO release all locks whose identifiers start with current PID
+    pid = 'pid{0}'.format(os.getpid())
+    for key in redis_conn.keys():
+        if key.startswith(pid):
+            try:  # lock might've disappeared due to timeout
+                identifier = redis_conn[key]
+            except KeyError:
+                continue
+            release_lock(redis_conn, key, identifier)
+    # TODO decrement readcount and writecount
 
 
 # TODO this overrides previously registered handlers, e.g., handlers registered
@@ -88,12 +104,14 @@ def reader(f):
             with redis_lock(redis_conn, readlock):
                 with redis_lock(redis_conn, mutex1):
                     readcount_val = redis_conn.incr(readcount, amount=1)
+                    readers[self.file] += 1
+                    assert(readers[self.file] > 0)
                     # TODO if program execution ends here, then readcount is
                     # never decremented!
                     if readcount_val == 1:
                         # The first reader sets the write lock (if
-                        # readcount > 1 it is already set). This locks out all
-                        # writers.
+                        # readcount_val > 1 it is already set).
+                        # This locks out all writers.
                         if not acquire_lock(redis_conn, writelock, identifier):
                             raise LockException("could not acquire write lock "
                                                 " {0}".format(writelock))
@@ -103,6 +121,8 @@ def reader(f):
         finally:
             with redis_lock(redis_conn, mutex1):
                 readcount_val = redis_conn.decr(readcount, amount=1)
+                readers[self.file] -= 1
+                assert(readers[self.file] >= 0)
                 if readcount_val == 0:  # no readers left => release write lock
                     if not release_lock(redis_conn, writelock, identifier):
                         raise LockException("write lock {0} was lost"
@@ -136,6 +156,8 @@ def writer(f):
 
         with redis_lock(redis_conn, mutex2):
             writecount_val = redis_conn.incr(writecount, amount=1)
+            writers[self.file] += 1
+            assert(writers[self.file] == 1)
             if writecount_val == 1:
                 # block potential readers
                 if not acquire_lock(redis_conn, readlock, identifier):
@@ -150,6 +172,8 @@ def writer(f):
         finally:
             with redis_lock(redis_conn, mutex2):
                 writecount_val = redis_conn.decr(writecount, amount=1)
+                writers[self.file] -= 1
+                assert(writers[self.file] == 0)
                 if writecount_val == 0:
                     # release read lock s.t. readers are allowed
                     if not release_lock(redis_conn, readlock, identifier):
