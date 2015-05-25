@@ -97,9 +97,6 @@ def reader(f):
                         if not acquire_lock(redis_conn, writelock, identifier):
                             raise LockException("could not acquire write lock "
                                                 " {0}".format(writelock))
-                        # indicates that this process currently owns the write
-                        # lock
-                        write_lock = True
         try:
             result = f(self, *args, **kwargs)  # perform reading operation
             return result
@@ -110,7 +107,6 @@ def reader(f):
                     if not release_lock(redis_conn, writelock, identifier):
                         raise LockException("write lock {0} was lost"
                                             .format(writelock))
-                    write_lock = False
 
     return func_wrapper
 
@@ -126,7 +122,7 @@ def writer(f):
         Wraps writing functions.
         """
 
-        # note that the process releasing the 'r' lock may not be the
+        # note that the process releasing the read lock may not be the
         # same as the one that acquired it, so the identifier may have
         # changed and the lock is never released!!!
         # => we use an identifier unique to all writers!
