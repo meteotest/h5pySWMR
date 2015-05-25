@@ -81,11 +81,11 @@ def reader(f):
         mutex3 = 'mutex3__{}'.format(self.file)
         mutex1 = 'mutex1__{}'.format(self.file)
         readcount = 'readcount__{}'.format(self.file)
-        lock_r = 'r__{}'.format(self.file)
-        lock_w = 'w__{}'.format(self.file)
+        readlock = 'readlock__{}'.format(self.file)
+        writelock = 'writelock__{}'.format(self.file)
 
         with redis_lock(redis_conn, mutex3):
-            with redis_lock(redis_conn, lock_r):
+            with redis_lock(redis_conn, readlock):
                 with redis_lock(redis_conn, mutex1):
                     readcount_val = redis_conn.incr(readcount, amount=1)
                     # TODO if program execution ends here, then readcount is
@@ -94,9 +94,9 @@ def reader(f):
                         # The first reader sets the write lock (if
                         # readcount > 1 it is already set). This locks out all
                         # writers.
-                        if not acquire_lock(redis_conn, lock_w, identifier):
+                        if not acquire_lock(redis_conn, writelock, identifier):
                             raise LockException("could not acquire write lock "
-                                                " {0}".format(lock_w))
+                                                " {0}".format(writelock))
                         # indicates that this process currently owns the write
                         # lock
                         write_lock = True
@@ -107,9 +107,9 @@ def reader(f):
             with redis_lock(redis_conn, mutex1):
                 readcount_val = redis_conn.decr(readcount, amount=1)
                 if readcount_val == 0:  # no readers left => release write lock
-                    if not release_lock(redis_conn, lock_w, identifier):
+                    if not release_lock(redis_conn, writelock, identifier):
                         raise LockException("write lock {0} was lost"
-                                            .format(lock_w))
+                                            .format(writelock))
                     write_lock = False
 
     return func_wrapper
@@ -135,18 +135,18 @@ def writer(f):
         # names of locks
         mutex2 = 'mutex2__{}'.format(self.file)
         writecount = 'writecount__{}'.format(self.file)
-        lock_r = 'r__{}'.format(self.file)
-        lock_w = 'w__{}'.format(self.file)
+        readlock = 'readlock__{}'.format(self.file)
+        writelock = 'writelock__{}'.format(self.file)
 
         with redis_lock(redis_conn, mutex2):
             writecount_val = redis_conn.incr(writecount, amount=1)
             if writecount_val == 1:
                 # block potential readers
-                if not acquire_lock(redis_conn, lock_r, identifier):
+                if not acquire_lock(redis_conn, readlock, identifier):
                     raise LockException("could not acquire read lock {0}"
-                                        .format(lock_r))
+                                        .format(readlock))
         try:
-            with redis_lock(redis_conn, lock_w):
+            with redis_lock(redis_conn, writelock):
                 # perform writing operation
                 return_val = f(self, *args, **kwargs)
         except:
@@ -156,9 +156,9 @@ def writer(f):
                 writecount_val = redis_conn.decr(writecount, amount=1)
                 if writecount_val == 0:
                     # release read lock s.t. readers are allowed
-                    if not release_lock(redis_conn, lock_r, identifier):
+                    if not release_lock(redis_conn, readlock, identifier):
                         raise LockException("read lock {0} was lost"
-                                            .format(lock_r))
+                                            .format(readlock))
 
         return return_val
 
@@ -171,17 +171,16 @@ def acquire_lock(conn, lockname, identifier, acq_timeout=ACQ_TIMEOUT,
     Wait for and acquire a lock. Returns identifier on success and False
     on failure.
 
-    keyword arguments:
-
-    conn         redis connection object
-    lockname     name of the lock
-    identifier   an identifier that will be required in order to release the
-                 lock.
-    acq_timeout  timeout for acquiring the lock. If lock could not be acquired
-                 during *atime* seconds, False is returned.
-    timeout      timeout of the lock in seconds. The lock is automatically
-                 released after *ltime* seconds. Make sure your operation does
-                 not take longer than the timeout!
+    Args:
+        conn: redis connection object
+        lockname: name of the lock
+        identifier: an identifier that will be required in order to release
+            the lock.
+        acq_timeout: timeout for acquiring the lock. If lock could not be
+            acquired during *atime* seconds, False is returned.
+        timeout: timeout of the lock in seconds. The lock is automatically
+            released after *ltime* seconds. Make sure your operation does
+            not take longer than the timeout!
     """
 
     end = time.time() + acq_timeout
@@ -226,7 +225,7 @@ def release_lock(conn, lockname, identifier):
 
 class LockException(Exception):
     """
-    TODO
+    Raises when a lock could not be acquired or when a lock is lost.
     """
     pass
 
