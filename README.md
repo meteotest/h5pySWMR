@@ -2,12 +2,11 @@ Parallel (single write multiple read) HDF5 for Python
 =====================================================
 
 h5pySWMR is a drop-in replacement for the [h5py](http://www.h5py.org) library.
-h5pySWMR synchronizes parallel read and write access to HDF5 files
-reads are possible and writes are exclusive. That is, you can read/write
-from/to HDF5 files from parallel processes or threads without
-
-
-(note that parallel reads/writes in h5py result in data corruption since HDF5 is not thread-safe).
+h5pySWMR synchronizes read and write access to HDF5 files. It allows parallel
+reading, but writing is serialized.
+With h5pySWMR, you can read and write HDF5 files from parallel
+processes/threads without having to fear data corruption. Note that, with h5py,
+reading and writing from/to a file can result in data corruption.
 
 It works just like h5py:
 
@@ -23,17 +22,40 @@ data = f['/mygroup/mydataset'][:]
 # no need to explicitely close the file (files are opened/closed when accessed)
 ```
 
-Even though HDF5 (and h5py, which is a Python wrapper of the HDF5 C-library) does not allow parallel reading **and** writing,
-parallel reading is possible (with the restriction
-that files are opened only **after** processes are forked). This allows us — using appropriate synchronization
-techniques — to provide parallel reading and **serialized** writing, i.e., processes (reading or writing)
-are forced to wait while a file is being written to. This is sometimes called "single write multiple read" (SWMR).
-The synchronization algorithm used is basically an implementation of the so-called
-[second readers-writers problem](http://en.wikipedia.org/wiki/Readers%E2%80%93writers_problem#The_second_readers-writers_problem),
-using a [redis](http://www.redis.io)-server for interprocess locking.
 
-**Caution**: This is an early version. Please test/verify carefully before using
-it in a production environment. Please report bugs and provide feedback.
+
+FAQ
+---
+
+1. **When should I use h5pySWMR?**
+   blabla
+1. **Is h5pySWMR production ready?**
+   Yes. Read section 'Limitations', though.
+1. **Does h5pySWMR require the MPI version of HDF5?**
+   No.
+1. **Is h5pySWMR as fast as h5py?**
+   Almost. There is a small overhead due to synchronization and because files
+   must be opened/closed for every operation. This overhead is neglible,
+   especially if you read/write large amounts of data.
+1. **What is HDF5 and what is h5py?**
+   HDF5 (Hierarchical Data Format 5) is a binary file format designed to store
+   large amounts of numerical raster data, i.e., arrays. It also allows to
+   store data in so-called groups (hence the name "Hierarchical").
+   h5py is a great library that provides Pythonic bindings to the HDF5 library.
+1. **How does h5pySWMR work?**
+   Even though HDF5 (and h5py) does not allow parallel reading **and** writing,
+   parallel reading is possible (with the restriction that files are opened
+   only **after** processes are forked). This allows us — using appropriate
+   synchronization techniques — to provide parallel reading and **serialized**
+   writing, i.e., processes (reading or writing) are forced to wait while a file
+   is being written to. This is sometimes called "single write multiple read"
+   (SWMR).The synchronization algorithm used is basically an implementation of
+   the so-called
+   [second readers-writers problem](http://en.wikipedia.org/wiki/Readers%E2%80%93writers_problem#The_second_readers-writers_problem),
+   using a [redis](http://www.redis.io)-server for interprocess locking.
+
+1. **I found a bug, what should I do?**
+   Please open an issue on github.
 
 
 Limitations
@@ -51,7 +73,7 @@ Limitations
 Differences between h5py and h5pySWMR
 -------------------------------------
 
-In general, you can just replace `import h5py` with `import h5pyswmr as h5py`
+In general, you could simply replace `import h5py` with `import h5pyswmr as h5py`
 and everything should work as expected. There are a few differences and
 limitations, though:
 
