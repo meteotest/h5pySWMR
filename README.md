@@ -29,7 +29,7 @@ FAQ
 
 #### When should I use h5pySWMR?
 
-When you want to read and write to hdf5 files at the same time, i.e.,
+When you want to read and write hdf5 files at the same time, i.e.,
 from parallel processes.
 
 #### Is h5pySWMR production ready?
