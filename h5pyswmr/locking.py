@@ -92,7 +92,7 @@ def reader(f):
                 return result
             finally:
                 pid = os.getpid()
-                print("@reader PID {0}, finally clause!!!".format(pid))
+                # print("@reader PID {0}, finally clause!!!".format(pid))
                 with redis_lock(redis_conn, mutex1):
                     readcount_val = redis_conn.decr(readcount, amount=1)
                     if readcount_val == 0:  # no readers left => release write lock

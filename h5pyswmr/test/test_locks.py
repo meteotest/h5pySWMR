@@ -9,6 +9,7 @@ import multiprocessing
 import time
 import random
 import signal
+import uuid
 
 
 if __name__ == '__main__':
@@ -18,7 +19,7 @@ if __name__ == '__main__':
     PROJ_PATH = os.path.abspath(os.path.join(HERE, '../..'))
     sys.path.insert(0, PROJ_PATH)
 
-    from h5pyswmr.locking import reader, writer
+    from h5pyswmr.locking import reader, writer, redis_conn
 
 
 class DummyResource(object):
@@ -44,7 +45,7 @@ class DummyResource(object):
         print(u"❤ {0}worker {1} (PID {2}) reading!"
               .format('suicidal ' if suicide else '', worker_no, pid))
         if suicide:
-            print("✟ Worker {0} (PID {1}) committing suicide..."
+            print(u"✟ Worker {0} (PID {1}) committing suicide..."
                   .format(worker_no, pid))
             os.kill(pid, signal.SIGTERM)
             print("##### I'm dead, this should not show up! #####")
@@ -60,39 +61,66 @@ class DummyResource(object):
         time.sleep(random.random())
 
 
-def main():
+class TestLocks(unittest.TestCase):
     """
-    Test parallel read/write access
+    Unit test for locking module
     """
 
-    resource = DummyResource('myresource')
+    def test_locks(self):
+        """
+        Test parallel read/write access
+        """
+        res_name = 'testresource87234ncsdf'
+        resource = DummyResource(res_name)
 
-    def worker_read(i, resource):
-        time.sleep(random.random() * 2)
-        print(u"Worker {0} attempts to read...".format(i))
-        if i % 13 == 1:
-            resource.read(i, suicide=True)
-        else:
-            resource.read(i)
+        def worker_read(i, resource):
+            """ reading worker """
+            time.sleep(random.random() * 2)
+            print(u"Worker {0} attempts to read...".format(i))
+            if i % 13 == 1:
+                resource.read(i, suicide=True)
+            else:
+                resource.read(i)
 
-    def worker_write(i, resource):
-        time.sleep(random.random() * 2.4)
-        print(u"Worker {0} tries to write...".format(i))
-        resource.write(i)
+        def worker_write(i, resource):
+            """ writing worker """
+            time.sleep(random.random() * 2.4)
+            print(u"Worker {0} tries to write...".format(i))
+            resource.write(i)
 
-    pid = os.getpid()
-    print("\nMain process has PID {0}".format(pid))
-    jobs = []
-    NO_WORKERS = 30
-    for i in range(NO_WORKERS):
-        if i % 6 == 1:
-            p = multiprocessing.Process(target=worker_write, args=(i, resource))
-        else:
-            p = multiprocessing.Process(target=worker_read, args=(i, resource))
-        p.start()
-        jobs.append(p)
-        # p.join()
+        pid = os.getpid()
+        print("\nMain process has PID {0}".format(pid))
+        jobs = []
+        NO_WORKERS = 30
+        for i in range(NO_WORKERS):
+            if i % 6 == 1:
+                p = multiprocessing.Process(target=worker_write, args=(i, resource))
+            else:
+                p = multiprocessing.Process(target=worker_read, args=(i, resource))
+            p.start()
+            jobs.append(p)
+
+        # wait until all processes have terminated
+        while True:
+            time.sleep(0.3)
+            all_terminated = not max((job.is_alive() for job in jobs))
+            if all_terminated:
+                break
+
+        # Verify if all locks have been released
+        print("Testing if locks have been released...")
+        # TODO
+        for key in redis_conn.keys():
+            if res_name not in key:
+                continue
+            if (key == 'readcount__{0}'.format(res_name)
+                    or key == 'writecount__{0}'.format(res_name)):
+                assert(redis_conn[key] == u'0')
+            else:
+                raise AssertionError("Lock '{0}' has not been released!"
+                                     .format(key))
 
 
 if __name__ == '__main__':
-    main()
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestLocks)
+    unittest.TextTestRunner(verbosity=2).run(suite)

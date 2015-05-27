@@ -33,7 +33,7 @@ class TestHDF5(unittest.TestCase):
         tmpdir = tempfile.gettempdir()
 
         NO_WORKERS = 40
-        filename = os.path.join(tmpdir, 'parallel_test.h5')
+        filename = os.path.join(tmpdir, 'paralleltest827348723.h5')
         f = File(filename, 'w')
         # create some datasets (to test reading)
         for i in range(NO_WORKERS):
