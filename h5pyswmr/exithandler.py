@@ -52,7 +52,6 @@ def handle_exit(callback=None, append=False):
         raise RuntimeError("can't use nested contexts")
     _sigterm_handler.__enter_ctx__ = True
 
-    print("yield")
     try:
         yield
     except KeyboardInterrupt:
