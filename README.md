@@ -1,9 +1,13 @@
 Parallel (single write multiple read) HDF5 for Python
 =====================================================
 
-This is a simple wrapper around the [h5py](http://www.h5py.org) library.
-It allows to read/write HDF5 files in a multiprocessed or multithreaded
-context (note that parallel reads/writes in h5py result in data corruption since HDF5 is not thread-safe).
+h5pySWMR is a drop-in replacement for the [h5py](http://www.h5py.org) library.
+h5pySWMR synchronizes parallel read and write access to HDF5 files
+reads are possible and writes are exclusive. That is, you can read/write
+from/to HDF5 files from parallel processes or threads without
+
+
+(note that parallel reads/writes in h5py result in data corruption since HDF5 is not thread-safe).
 
 It works just like h5py:
 
@@ -30,6 +34,37 @@ using a [redis](http://www.redis.io)-server for interprocess locking.
 
 **Caution**: This is an early version. Please test/verify carefully before using
 it in a production environment. Please report bugs and provide feedback.
+
+
+Limitations
+-----------
+
+* True parallel reading can only be achieved with parallel processes. Thread
+  concurrency is not supported. This is a limitation of h5py, which currently
+  does not release the global interpreter lock (GIL) for I/O operations.
+* After a crash (or if the process is killed by sending a SIGKILL signal), the
+  redis-based synchronization algorithm may end up in an inconsistent state.
+  This can result in deadlocks or data corruption.
+  Proper process termination (SIGTERM or pressing Ctrl+C) is fine, though.
+
+
+Differences between h5py and h5pySWMR
+-------------------------------------
+
+In general, you can just replace ''import h5py'' with ''import h5pyswmr as h5py''
+
+```python
+import h5py
+```
+
+with
+
+```python
+import h5pyswmr as h5py
+```
+
+
+* TODO
 
 
 Installation
@@ -90,11 +125,11 @@ These settings are hard-coded but can be modified at run time
 
 ```python
 import redis
-from h5pyswmr import h5pyswmr
+from h5pyswmr import locking
 
 # overwrite redis connection object
-h5pyswmr.redis_conn = redis.StrictRedis(host='localhost', port=6666, db=0,
-                                        decode_responses=True)
+locking.redis_conn = redis.StrictRedis(host='localhost', port=6666, db=0,
+                                       decode_responses=True)
 ```
 
 For performance reasons (after all, hdf5 is all about performance),

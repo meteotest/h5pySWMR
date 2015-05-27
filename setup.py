@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 
+"""
+Setup script
+"""
+
 try:
     from setuptools import setup
 except ImportError:
@@ -7,7 +11,7 @@ except ImportError:
 
 setup(
     name='h5pySWMR',
-    version='0.1',
+    version='0.2',
     author='METEOTEST',
     packages=['h5pyswmr', 'h5pyswmr.test'],
     license='LICENSE.txt',
