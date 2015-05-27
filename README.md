@@ -51,18 +51,9 @@ Limitations
 Differences between h5py and h5pySWMR
 -------------------------------------
 
-In general, you can just replace ''import h5py'' with ''import h5pyswmr as h5py''
-
-```python
-import h5py
-```
-
-with
-
-```python
-import h5pyswmr as h5py
-```
-
+In general, you can just replace `import h5py` with `import h5pyswmr as h5py`
+and everything should work as expected. There are a few differences and
+limitations, though:
 
 * TODO
 
