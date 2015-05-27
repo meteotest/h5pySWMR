@@ -27,32 +27,32 @@ data = f['/mygroup/mydataset'][:]
 FAQ
 ---
 
-### When should I use h5pySWMR?
+#### When should I use h5pySWMR?
 
 blabla
 
-### Is h5pySWMR production ready?
+#### Is h5pySWMR production ready?
 
 Yes. Read section 'Limitations', though.
 
-### Does h5pySWMR require the MPI version of HDF5?
+#### Does h5pySWMR require the MPI version of HDF5?
 
 No.
 
-### Is h5pySWMR as fast as h5py?
+#### Is h5pySWMR as fast as h5py?
 
 Almost. There is a small overhead due to synchronization and because files
 must be opened/closed for every operation. This overhead is neglible,
 especially if you read/write large amounts of data.
 
-### What is HDF5 and what is h5py?
+#### What is HDF5 and what is h5py?
 
 HDF5 (Hierarchical Data Format 5) is a binary file format designed to store
 large amounts of numerical raster data, i.e., arrays. It also allows to
 store data in so-called groups (hence the name "Hierarchical").
 h5py is a great library that provides Pythonic bindings to the HDF5 library.
 
-### How does h5pySWMR work?
+#### How does h5pySWMR work?
 
 Even though HDF5 (and h5py) does not allow parallel reading **and** writing,
 parallel reading is possible (with the restriction that files are opened
@@ -65,7 +65,7 @@ the so-called
 [second readers-writers problem](http://en.wikipedia.org/wiki/Readers%E2%80%93writers_problem#The_second_readers-writers_problem),
 using a [redis](http://www.redis.io)-server for interprocess locking.
 
-### I found a bug, what should I do?
+#### I found a bug, what should I do?
 
 Please open an issue on github.
 
