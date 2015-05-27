@@ -42,7 +42,7 @@ class TestHDF5(unittest.TestCase):
                              .astype(np.float32))
 
         def worker_read(i, hdf5file):
-            # do some reading
+            """ reading worker """
             time.sleep(random.random())
             print("worker {0} is reading...".format(i))
             data = hdf5file['/testgrp/dataset{}'.format(i)][:]
@@ -50,6 +50,7 @@ class TestHDF5(unittest.TestCase):
             self.assertEqual(data.shape, self.shape)
 
         def worker_write(i, hdf5file):
+            """ writing worker """
             # do some reading
             # print(hdf5file.keys())
             # do some writing
@@ -92,5 +93,10 @@ class TestHDF5(unittest.TestCase):
         pass
 
 
-suite = unittest.TestLoader().loadTestsFromTestCase(TestHDF5)
-unittest.TextTestRunner(verbosity=2).run(suite)
+def run():
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestHDF5)
+    unittest.TextTestRunner(verbosity=2).run(suite)
+
+
+if __name__ == '__main__':
+    run()

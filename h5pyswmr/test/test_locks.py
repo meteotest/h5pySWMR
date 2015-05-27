@@ -19,7 +19,7 @@ if __name__ == '__main__':
     PROJ_PATH = os.path.abspath(os.path.join(HERE, '../..'))
     sys.path.insert(0, PROJ_PATH)
 
-    from h5pyswmr.locking import reader, writer, redis_conn
+from h5pyswmr.locking import reader, writer, redis_conn
 
 
 class DummyResource(object):
@@ -121,6 +121,10 @@ class TestLocks(unittest.TestCase):
                                      .format(key))
 
 
-if __name__ == '__main__':
+def run():
     suite = unittest.TestLoader().loadTestsFromTestCase(TestLocks)
     unittest.TextTestRunner(verbosity=2).run(suite)
+
+
+if __name__ == '__main__':
+    run()

@@ -117,18 +117,9 @@ Running tests
 
 To make sure everything works as expected, run the following:
 
-```
-$ python -c "from h5pyswmr.test import test_parallel"
-----------------------------------------------------------------------
-Ran 1 test in 2.267s
-
-OK
-```
-
-or, alternatively,
-
-```
-$ python h5pyswmr/test/test_parallel.py
+```python
+import h5pyswmr
+h5pyswmr.test()
 ```
 
 Prerequisites
