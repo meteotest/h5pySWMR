@@ -66,6 +66,10 @@ the so-called
 [second readers-writers problem](http://en.wikipedia.org/wiki/Readers%E2%80%93writers_problem#The_second_readers-writers_problem),
 using a [redis](http://www.redis.io)-server for interprocess locking.
 
+#### Why is it not on pypi?
+
+It will be, soon...
+
 #### I found a bug, what should I do?
 
 Please open an issue on github.
