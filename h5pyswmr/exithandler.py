@@ -56,7 +56,7 @@ def handle_exit(callback=None, append=False):
         yield
     except KeyboardInterrupt:
         pass
-    except SystemExit, err:
+    except SystemExit as err:
         # code != 0 refers to an application error (e.g. explicit
         # sys.exit('some error') call).
         # We don't want that to pass silently.
