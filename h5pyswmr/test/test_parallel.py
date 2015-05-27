@@ -75,9 +75,15 @@ class TestHDF5(unittest.TestCase):
             p.start()
             # p.join()
 
-        # check if file was written correctly
-        # wait a few seconds to make sure that all workers are done...
-        time.sleep(10)
+        # wait until all processes have terminated
+        while True:
+            time.sleep(0.3)
+            all_terminated = not max((job.is_alive() for job in jobs))
+            if all_terminated:
+                break
+
+        # then test if data was written correctly
+        print("Testing if data was written correctly...")
         for i in writers:
             dst = f['/testgrp/dataset{}'.format(i)]
             self.assertTrue(np.all(dst[0:50, ] == i))
