@@ -13,6 +13,7 @@ import contextlib
 import signal
 import sys
 import threading
+import warnings
 
 
 def _sigterm_handler(signum, frame):
@@ -41,6 +42,9 @@ def handle_exit(callback=None, append=False):
     """
     t = threading.current_thread()
     if t.name != 'MainThread':
+        warnings.warn("!!!!! h5pySWMR does not (yet) work in a threaded "
+                      "environment !!!!!",
+                      UserWarning)
         yield
         return
 
