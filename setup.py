@@ -9,9 +9,11 @@ try:
 except ImportError:
     from distutils.core import setup
 
+import h5pyswmr
+
 setup(
     name='h5pySWMR',
-    version='0.2',
+    version=h5pyswmr.__version__,
     author='METEOTEST',
     packages=['h5pyswmr', 'h5pyswmr.test'],
     license='LICENSE.txt',
