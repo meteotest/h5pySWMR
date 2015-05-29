@@ -6,6 +6,7 @@ import unittest
 import sys
 import os
 import multiprocessing
+import threading
 import time
 import random
 import signal
@@ -70,6 +71,21 @@ class TestLocks(unittest.TestCase):
         """
         Test parallel read/write access
         """
+        # test with threads and processes
+        # print("\n##### Running tests with threads... #####")
+        # TODO Library does not yet work in multithreaded environment
+        # self.run_locks_test(threading.Thread)
+        print("\n ##### Running tests with processes... #####")
+        self.run_locks_test(multiprocessing.Process)
+
+    def run_locks_test(self, threadclass):
+        """
+        Run the actual test, either with threads or processes.
+
+        Args:
+            threadclass: class, either threading.Thread or
+                multiprocessing.Process
+        """
         res_name = 'testresource87234ncsdf'
         resource = DummyResource(res_name)
 
@@ -94,9 +110,9 @@ class TestLocks(unittest.TestCase):
         NO_WORKERS = 30
         for i in range(NO_WORKERS):
             if i % 6 == 1:
-                p = multiprocessing.Process(target=worker_write, args=(i, resource))
+                p = threadclass(target=worker_write, args=(i, resource))
             else:
-                p = multiprocessing.Process(target=worker_read, args=(i, resource))
+                p = threadclass(target=worker_read, args=(i, resource))
             p.start()
             jobs.append(p)
 

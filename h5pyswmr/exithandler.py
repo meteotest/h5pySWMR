@@ -12,6 +12,7 @@ http://code.activestate.com/recipes/577997-handle-exit-context-manager/
 import contextlib
 import signal
 import sys
+import threading
 
 
 def _sigterm_handler(signum, frame):
@@ -38,6 +39,11 @@ def handle_exit(callback=None, append=False):
     registered for SIGTERM, otherwise both new and old handlers are
     executed in this order.
     """
+    t = threading.current_thread()
+    if t.name != 'MainThread':
+        yield
+        return
+
     old_handler = signal.signal(signal.SIGTERM, _sigterm_handler)
     if old_handler != signal.SIG_DFL and old_handler != _sigterm_handler:
         if not append:
