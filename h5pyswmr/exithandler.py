@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 
 """
-Author: Giampaolo Rodola' <g.rodola [AT] gmail [DOT] com>
+SIGTERM handler. Makes sure that reader/writer synchronization remains in a
+consistent state after process termination. Note that deadlocks or data
+corruption may still occur if processes are killed (SIGKILL / kill -9).
+
+Special thanks to Giampaolo Rodola for this code:
 http://code.activestate.com/recipes/577997-handle-exit-context-manager/
-License: MIT
 """
 
 import contextlib
@@ -118,11 +121,9 @@ if __name__ == '__main__':
                 print("handler")
 
             with handle_exit(handler):
-                try:
-                    time.sleep(2)
-                    os.kill(os.getpid(), signal.SIGTERM)
-                finally:
-                    print("finally")
+                time.sleep(2)
+                os.kill(os.getpid(), signal.SIGTERM)
+
             self.flag = True
 
         def test_sigint(self):
