@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 
 """
-Lock/semaphore implementation based on redis server.
-Using redis allows locks to be shared among processes.
+Interesting resources:
 
-Inspired by:
+http://code.activestate.com/recipes/519626-simple-file-based-mutex-for-very-basic-ipc/
+http://stackoverflow.com/questions/6931342/system-wide-mutex-in-python-on-linux
+
 http://www.dr-josiah.com/2012/01/creating-lock-with-redis.html
 http://redis.io/topics/distlock
 
@@ -33,14 +34,9 @@ import signal
 from functools import wraps
 from collections import defaultdict
 
-import redis
+from posix_ipc import Semaphore, O_CREAT, BusyError, ExistentialError
 
 from .exithandler import handle_exit
-
-
-# we make sure that redis connections do not time out
-redis_conn = redis.StrictRedis(host='localhost', port=6379, db=0,
-                               decode_responses=True)  # important for Python3
 
 
 DEFAULT_TIMEOUT = 20  # seconds
@@ -74,17 +70,16 @@ def reader(f):
             readlock = 'readlock__{}'.format(self.file)
             writelock = 'writelock__{}'.format(self.file)
 
-            with redis_lock(redis_conn, mutex3):
-                with redis_lock(redis_conn, readlock):
-                    with redis_lock(redis_conn, mutex1):
-                        readcount_val = redis_conn.incr(readcount, amount=1)
-                        # TODO if program execution ends here, then readcount is
-                        # never decremented!
-                        if readcount_val == 1:
+            with mutex(mutex3):
+                with mutex(readlock):
+                    with mutex(mutex1):
+                        sem_readcnt = Semaphore(readcount, flags=O_CREAT)
+                        sem_readcnt.release()  # increment
+                        if sem_readcnt.value == 1:
                             # The first reader sets the write lock (if
                             # readcount_val > 1 it is already set).
                             # This locks out all writers.
-                            if not acquire_lock(redis_conn, writelock, WRITELOCK_ID):
+                            if not acquire_lock(writelock, WRITELOCK_ID):
                                 raise LockException("could not acquire write lock "
                                                     " {0}".format(writelock))
             try:
@@ -93,10 +88,12 @@ def reader(f):
             finally:
                 pid = os.getpid()
                 # print("@reader PID {0}, finally clause!!!".format(pid))
-                with redis_lock(redis_conn, mutex1):
-                    readcount_val = redis_conn.decr(readcount, amount=1)
-                    if readcount_val == 0:  # no readers left => release write lock
-                        if not release_lock(redis_conn, writelock, WRITELOCK_ID):
+                with mutex(mutex1):
+                    sem_readcnt = Semaphore(readcount, flags=O_CREAT)
+                    sem_readcnt.acquire()  # decrement
+                    if sem_readcnt.value == 0:
+                        # no readers left => release write lock
+                        if not release_lock(writelock):
                             raise LockException("write lock {0} was lost"
                                                 .format(writelock))
 
@@ -121,25 +118,25 @@ def writer(f):
         readlock = 'readlock__{}'.format(self.file)
         writelock = 'writelock__{}'.format(self.file)
 
-        with redis_lock(redis_conn, mutex2):
+        with mutex(mutex2):
             writecount_val = redis_conn.incr(writecount, amount=1)
             if writecount_val == 1:
                 # block potential readers
-                if not acquire_lock(redis_conn, readlock, READLOCK_ID):
+                if not acquire_lock(readlock, READLOCK_ID):
                     raise LockException("could not acquire read lock {0}"
                                         .format(readlock))
         try:
-            with redis_lock(redis_conn, writelock):
+            with mutex(writelock):
                 # perform writing operation
                 return_val = f(self, *args, **kwargs)
         except:
             raise
         finally:
-            with redis_lock(redis_conn, mutex2):
+            with mutex(mutex2):
                 writecount_val = redis_conn.decr(writecount, amount=1)
                 if writecount_val == 0:
                     # release read lock s.t. readers are allowed
-                    if not release_lock(redis_conn, readlock, READLOCK_ID):
+                    if not release_lock(readlock, READLOCK_ID):
                         raise LockException("read lock {0} was lost"
                                             .format(readlock))
 
@@ -148,61 +145,30 @@ def writer(f):
     return func_wrapper
 
 
-def acquire_lock(conn, lockname, identifier, acq_timeout=ACQ_TIMEOUT,
-                 timeout=DEFAULT_TIMEOUT):
+def acquire_lock(lockname, acq_timeout=ACQ_TIMEOUT):
     """
     Wait for and acquire a lock. Returns identifier on success and False
     on failure.
-
-    Args:
-        conn: redis connection object
-        lockname: name of the lock
-        identifier: an identifier that will be required in order to release
-            the lock.
-        acq_timeout: timeout for acquiring the lock. If lock could not be
-            acquired during *atime* seconds, False is returned.
-        timeout: timeout of the lock in seconds. The lock is automatically
-            released after *ltime* seconds. Make sure your operation does
-            not take longer than the timeout!
     """
-    end = time.time() + acq_timeout
-    while end > time.time():
-        if conn.setnx(lockname, identifier):
-            conn.expire(lockname, timeout)
-            return identifier
-        elif not conn.ttl(lockname):
-            conn.expire(lockname, timeout)
-        # could not acquire lock, go to sleep and try again later...
-        time.sleep(.001)
-
-    return False
+    sem = Semaphore(lockname, flags=O_CREAT)
+    try:
+        sem.acquire(acq_timeout)
+    except BusyError:
+        return False
+    else:
+        return True
 
 
-def release_lock(conn, lockname, identifier):
+def release_lock(lockname):
     """
     Signal/release a lock.
 
     Args:
-        conn: redi connection
         lockname: name of the lock to be released
-        identifier: lock will only be released if identifier matches the
-            identifier that was provided when the lock was acquired.
     """
-
-    pipe = conn.pipeline(True)
-    while True:
-        try:
-            pipe.watch(lockname)
-            if pipe.get(lockname) == identifier:
-                pipe.multi()
-                pipe.delete(lockname)
-                pipe.execute()
-                return True
-            else:
-                pipe.unwatch()
-                return False   # we lost the lock
-        except redis.exceptions.WatchError as e:
-            raise e
+    sem = Semaphore(lockname, flags=O_CREAT)
+    sem.release()
+    return True
 
 
 class LockException(Exception):
@@ -213,16 +179,14 @@ class LockException(Exception):
 
 
 @contextlib.contextmanager
-def redis_lock(conn, lockname, acq_timeout=DEFAULT_TIMEOUT,
-               timeout=DEFAULT_TIMEOUT):
+def mutex(lockname, acq_timeout=DEFAULT_TIMEOUT, timeout=DEFAULT_TIMEOUT):
     """
     Allows atomic execution of code blocks using 'with' syntax:
 
-    with redis_lock(redis_conn, 'mylock'):
+    with mutex('mylock'):
         # critical section...
 
     Args:
-        conn: redis connection object
         lockname: name of the lock
         acq_timeout: timeout for acquiring the lock. If lock could not be
             acquired during *atime* seconds, False is returned.
@@ -230,16 +194,40 @@ def redis_lock(conn, lockname, acq_timeout=DEFAULT_TIMEOUT,
             released after *ltime* seconds. Make sure your operation does
             not take longer than the timeout!
     """
-
-    # generate (random) unique identifier, prefixed by current PID (allows
-    # cleaning up locks before process is being killed)
-    pid = os.getpid()
-    identifier = 'pid{0}_{1}'.format(pid, str(uuid.uuid4()))
-    if acquire_lock(conn, lockname, identifier, acq_timeout,
-                    timeout) != identifier:
+    # # generate (random) unique identifier, prefixed by current PID (allows
+    # # cleaning up locks before process is being killed)
+    # pid = os.getpid()
+    # identifier = 'pid{0}_{1}'.format(pid, str(uuid.uuid4()))
+    sem = Semaphore(lockname, flags=O_CREAT)
+    try:
+        sem.acquire(acq_timeout)
+    except BusyError:
         raise LockException("could not acquire lock {0}".format(lockname))
     try:
-        yield identifier
+        yield
     finally:
-        if not release_lock(conn, lockname, identifier):
-            raise LockException("lock {0} was lost".format(lockname))
+        sem.release()
+
+
+def clear_semaphores(resourcename):
+    """
+    Close and unlink all semaphores related to ``resourcename``.
+    """
+    semaphores = [
+        'mutex3__{}'.format(resourcename),
+        'mutex2__{}'.format(resourcename),
+        'mutex1__{}'.format(resourcename),
+        'readcount__{}'.format(resourcename),
+        'writecount__{}'.format(resourcename),
+        'readlock__{}'.format(resourcename),
+        'writelock__{}'.format(resourcename)
+    ]
+    for s in semaphores:
+        try:
+            sem = Semaphore(s)
+            sem.close()
+            sem.unlink()
+        except ExistentialError:
+            continue
+        else:
+            print("removing semaphore {0}...".format(s))
