@@ -43,6 +43,7 @@ redis_conn = redis.StrictRedis(host='localhost', port=6379, db=0,
                                decode_responses=True)  # important for Python3
 
 
+APPEND_SIGHANDLER = False
 DEFAULT_TIMEOUT = 20  # seconds
 ACQ_TIMEOUT = 15
 
@@ -55,7 +56,7 @@ WRITELOCK_ID = 'id_reader'
 READLOCK_ID = 'id_writer'
 
 
-def reader(f):
+def reader(f, append=APPEND_SIGHANDLER):
     """
     Decorates methods reading an HDF5 file.
     """
@@ -66,7 +67,7 @@ def reader(f):
         Wraps reading functions.
         """
 
-        with handle_exit():
+        with handle_exit(append=append):
             # names of locks
             mutex3 = 'mutex3__{}'.format(self.file)
             mutex1 = 'mutex1__{}'.format(self.file)
