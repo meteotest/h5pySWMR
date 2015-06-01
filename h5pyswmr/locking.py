@@ -25,13 +25,10 @@ programmers should make sure that clients do not exceed lock timeouts.
 """
 
 import os
-import sys
 import time
 import contextlib
 import uuid
-import signal
 from functools import wraps
-from collections import defaultdict
 
 import redis
 
@@ -56,7 +53,7 @@ WRITELOCK_ID = 'id_reader'
 READLOCK_ID = 'id_writer'
 
 
-def reader(f, append=APPEND_SIGHANDLER):
+def reader(f):
     """
     Decorates methods reading an HDF5 file.
     """
@@ -67,7 +64,7 @@ def reader(f, append=APPEND_SIGHANDLER):
         Wraps reading functions.
         """
 
-        with handle_exit(append=append):
+        with handle_exit(append=APPEND_SIGHANDLER):
             # names of locks
             mutex3 = 'mutex3__{}'.format(self.file)
             mutex1 = 'mutex1__{}'.format(self.file)
