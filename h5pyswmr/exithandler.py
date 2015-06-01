@@ -42,9 +42,9 @@ def handle_exit(callback=None, append=False):
     """
     t = threading.current_thread()
     if t.name != 'MainThread':
-        warnings.warn("!!!!! h5pySWMR does not (yet) work in a threaded "
-                      "environment !!!!!",
-                      UserWarning)
+        warnings.warn("!!! h5pySWMR warning: SIGTERM handling does not (yet) "
+                      "work in a threaded environment. Locks may not be "
+                      "released after process termination.", UserWarning)
         yield
         return
 
