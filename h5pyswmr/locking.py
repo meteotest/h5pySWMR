@@ -25,13 +25,10 @@ programmers should make sure that clients do not exceed lock timeouts.
 """
 
 import os
-import sys
 import time
 import contextlib
 import uuid
-import signal
 from functools import wraps
-from collections import defaultdict
 
 import redis
 
@@ -43,6 +40,7 @@ redis_conn = redis.StrictRedis(host='localhost', port=6379, db=0,
                                decode_responses=True)  # important for Python3
 
 
+APPEND_SIGHANDLER = False
 DEFAULT_TIMEOUT = 20  # seconds
 ACQ_TIMEOUT = 15
 
@@ -66,7 +64,7 @@ def reader(f):
         Wraps reading functions.
         """
 
-        with handle_exit():
+        with handle_exit(append=APPEND_SIGHANDLER):
             # names of locks
             mutex3 = 'mutex3__{}'.format(self.file)
             mutex1 = 'mutex1__{}'.format(self.file)
