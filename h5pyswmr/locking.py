@@ -2,9 +2,12 @@
 
 """
 Lock/semaphore implementation based on redis server.
+The algorithm implemented is "Problem 2" in the following paper:
+http://cs.nyu.edu/~lerner/spring10/MCP-S10-Read04-ReadersWriters.pdf
+
 Using redis allows locks to be shared among processes.
 
-Inspired by:
+Redis locks inspired by:
 http://www.dr-josiah.com/2012/01/creating-lock-with-redis.html
 http://redis.io/topics/distlock
 
@@ -67,23 +70,23 @@ def reader(f):
         Wraps reading functions.
         """
 
-        with handle_exit():
-            # names of locks
-            mutex3 = 'mutex3__{}'.format(self.file)
-            mutex1 = 'mutex1__{}'.format(self.file)
-            readcount = 'readcount__{}'.format(self.file)
-            readlock = 'readlock__{}'.format(self.file)
-            writelock = 'writelock__{}'.format(self.file)
+        # names of locks
+        mutex3 = 'mutex3__{}'.format(self.file)
+        mutex1 = 'mutex1__{}'.format(self.file)
+        readcount = 'readcount__{}'.format(self.file)
+        r = 'r__{}'.format(self.file)
+        w = 'w__{}'.format(self.file)
 
+        with handle_exit():
             # Note that try/finally must cover incrementing readcount as well
-            # as acquiring writelock. Otherwise readcount/writelock cannot be
+            # as acquiring w. Otherwise readcount/w cannot be
             # decremented/released if program execution ends, e.g., while
             # performing reading operation (e.g., because of a SIGTERM signal).
             readcount_val = None
-            writelock_result = None
+            w_result = None
             try:
                 with redis_lock(redis_conn, mutex3):
-                    with redis_lock(redis_conn, readlock):
+                    with redis_lock(redis_conn, r):
                         with redis_lock(redis_conn, mutex1):
                             readcount_val = redis_conn.incr(readcount, amount=1)
 
@@ -95,27 +98,27 @@ def reader(f):
                                 # The first reader sets the write lock (if
                                 # readcount_val > 1 it is already set).
                                 # This locks out all writers.
-                                writelock_result = acquire_lock(redis_conn, writelock, WRITELOCK_ID)
-                                if not writelock_result:
+                                w_result = acquire_lock(redis_conn, w, WRITELOCK_ID)
+                                if not w_result:
                                     raise LockException("could not acquire write lock "
-                                                        " {0}".format(writelock))
+                                                        " {0}".format(w))
                 result = f(self, *args, **kwargs)  # perform reading operation
                 return result
             finally:
+                # check if readcount has been incremented above. If so, we have
+                # to decrement it.
+                # Note that, if readcount was not incremented, then w
+                # also was not acquired by this thread.
                 print("@reader PID {0}, finally clause!!!".format(os.getpid()))
                 time.sleep(5)
-                with redis_lock(redis_conn, mutex1):
-                    # check if readcount has been incremented above. If not,
-                    # then we must not decrement it. Also note that, if program
-                    # execution ended before incrementing readcount, then
-                    # writelock cannot have been acquired above.
-                    if readcount_val is not None:
+                if readcount_val is not None:
+                    with redis_lock(redis_conn, mutex1):
                         readcount_val = redis_conn.decr(readcount, amount=1)
-                        if readcount_val == 0:  # no readers left => release write lock
-                            if writelock_result is not None:
-                                if not release_lock(redis_conn, writelock, WRITELOCK_ID):
-                                    raise LockException("write lock {0} was lost"
-                                                        .format(writelock))
+                        if readcount_val == 0 and w_result is not None:
+                            # no readers left => release write lock
+                            if not release_lock(redis_conn, w, WRITELOCK_ID):
+                                raise LockException("write lock {0} was lost"
+                                                    .format(w))
 
     return func_wrapper
 
@@ -130,37 +133,42 @@ def writer(f):
         """
         Wraps writing functions.
         """
-
         # names of locks
         mutex2 = 'mutex2__{}'.format(self.file)
         # note that writecount may be > 1 as it also counts the waiting writers
         writecount = 'writecount__{}'.format(self.file)
-        readlock = 'readlock__{}'.format(self.file)
-        writelock = 'writelock__{}'.format(self.file)
+        r = 'r__{}'.format(self.file)
+        w = 'w__{}'.format(self.file)
 
-        with redis_lock(redis_conn, mutex2):
-            writecount_val = redis_conn.incr(writecount, amount=1)
-            if writecount_val == 1:
-                # block potential readers
-                if not acquire_lock(redis_conn, readlock, READLOCK_ID):
-                    raise LockException("could not acquire read lock {0}"
-                                        .format(readlock))
-        try:
-            with redis_lock(redis_conn, writelock):
-                # perform writing operation
-                return_val = f(self, *args, **kwargs)
-        except:
-            raise
-        finally:
-            with redis_lock(redis_conn, mutex2):
-                writecount_val = redis_conn.decr(writecount, amount=1)
-                if writecount_val == 0:
-                    # release read lock s.t. readers are allowed
-                    if not release_lock(redis_conn, readlock, READLOCK_ID):
-                        raise LockException("read lock {0} was lost"
-                                            .format(readlock))
-
-        return return_val
+        with handle_exit():
+            writecount_val = None
+            r_result = None
+            try:
+                with redis_lock(redis_conn, mutex2):
+                    writecount_val = redis_conn.incr(writecount, amount=1)
+                    if writecount_val == 1:
+                        # block potential readers
+                        r_result = acquire_lock(redis_conn, r, READLOCK_ID)
+                        if not r_result:
+                            raise LockException("could not acquire read lock {0}"
+                                                .format(r))
+                    with redis_lock(redis_conn, w):
+                        # perform writing operation
+                        return_val = f(self, *args, **kwargs)
+                        return return_val
+            finally:
+                with redis_lock(redis_conn, mutex2):
+                    # check if writecount has been incremented above. If not,
+                    # then we must not decrement it. Also note that, if program
+                    # execution ended before incrementing writecount, then
+                    # r cannot have been acquired above.
+                    if writecount_val is not None:
+                        writecount_val = redis_conn.decr(writecount, amount=1)
+                        if writecount_val == 0 and r_result is not None:
+                            # release read lock s.t. readers are allowed
+                            if not release_lock(redis_conn, r, READLOCK_ID):
+                                raise LockException("read lock {0} was lost"
+                                                    .format(r))
 
     return func_wrapper
 
