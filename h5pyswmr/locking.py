@@ -4,19 +4,21 @@
 Lock/semaphore implementation based on redis server.
 The algorithm implemented is "Problem 2" in the following paper:
 http://cs.nyu.edu/~lerner/spring10/MCP-S10-Read04-ReadersWriters.pdf
+Note that the proposed solution works for threads accessing a shared resource.
+To get a working solution for process-based concurrency, one has to deal
+with (unexpected) process termination, which makes our solution slightly
+more involved.
 
 Using redis allows locks to be shared among processes.
-
 Redis locks inspired by:
 http://www.dr-josiah.com/2012/01/creating-lock-with-redis.html
 http://redis.io/topics/distlock
 
 Note that — in addition to a lock name — every acquire/release operation
 requires an identifier. This guarantees that a lock can only be released by
-the client (process/thread) that originally acquired it. Unless, of course,
+the client (process/thread) that acquired it. Unless, of course,
 the identifier is known to other clients as well (which is also a reasonable
 use case).
-
 For example a client may acquire a lock and be busy with an expensive
 operation that takes longer than the lock's timeout. This causes the lock
 to be automatically released. After that happened, another client may
@@ -28,13 +30,11 @@ programmers should make sure that clients do not exceed lock timeouts.
 """
 
 import os
-import sys
 import time
 import contextlib
 import uuid
 import signal
 from functools import wraps
-from collections import defaultdict
 import signal   # TODO remove
 
 import redis
@@ -87,6 +87,8 @@ def reader(f):
             try:
                 with redis_lock(redis_conn, mutex3):
                     with redis_lock(redis_conn, r):
+                        # mutex1's purpose is to make readcount++ together with
+                        # the readcount == 1 check atomic
                         with redis_lock(redis_conn, mutex1):
                             readcount_val = redis_conn.incr(readcount, amount=1)
 
@@ -94,10 +96,8 @@ def reader(f):
                             time.sleep(5)
                             os.kill(os.getpid(), signal.SIGTERM)
 
+                            # first reader sets the w lock to block writers
                             if readcount_val == 1:
-                                # The first reader sets the write lock (if
-                                # readcount_val > 1 it is already set).
-                                # This locks out all writers.
                                 w_result = acquire_lock(redis_conn, w, WRITELOCK_ID)
                                 if not w_result:
                                     raise LockException("could not acquire write lock "
