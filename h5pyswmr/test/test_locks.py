@@ -5,7 +5,8 @@ from __future__ import print_function
 import unittest
 import sys
 import os
-import multiprocessing
+from multiprocessing import Process
+from threading import Thread
 import time
 import random
 import signal
@@ -70,6 +71,21 @@ class TestLocks(unittest.TestCase):
         """
         Test parallel read/write access
         """
+        # test with threads and processes
+        # print("\n##### Running tests with threads... #####")
+        # TODO Library does not yet work in multithreaded environment
+        # self.run_locks_test(Thread)
+        print("\n ##### Running tests with processes... #####")
+        self.run_locks_test(Process)
+
+    def run_locks_test(self, threadclass):
+        """
+        Run the actual test, either with threads or processes.
+
+        Args:
+            threadclass: class, either threading.Thread or
+                multiprocessing.Process
+        """
         res_name = 'testresource87234ncsdf'
         resource = DummyResource(res_name)
 
@@ -91,12 +107,12 @@ class TestLocks(unittest.TestCase):
         pid = os.getpid()
         print("\nMain process has PID {0}".format(pid))
         jobs = []
-        NO_WORKERS = 30
+        NO_WORKERS = 1
         for i in range(NO_WORKERS):
             if i % 6 == 1:
-                p = multiprocessing.Process(target=worker_write, args=(i, resource))
+                p = Process(target=worker_write, args=(i, resource))
             else:
-                p = multiprocessing.Process(target=worker_read, args=(i, resource))
+                p = Process(target=worker_read, args=(i, resource))
             p.start()
             jobs.append(p)
 
@@ -119,6 +135,55 @@ class TestLocks(unittest.TestCase):
             else:
                 raise AssertionError("Lock '{0}' has not been released!"
                                      .format(key))
+
+    # def test_locks_manywriters(self):
+    #     """
+    #     Test locking with many writers and only one reader
+    #     """
+    #     res_name = 'testresource98352'
+    #     resource = DummyResource(res_name)
+
+    #     def worker_read(i, resource):
+    #         """ reading worker """
+    #         print(u"Worker {0} attempts to read...".format(i))
+    #         resource.read(i, suicide=True)
+
+    #     def worker_write(i, resource):
+    #         """ writing worker """
+    #         print(u"Worker {0} tries to write...".format(i))
+    #         resource.write(i)
+
+    #     pid = os.getpid()
+    #     print("\nMain process has PID {0}".format(pid))
+    #     jobs = []
+    #     NO_WORKERS = 30
+    #     for i in range(NO_WORKERS):
+    #         if i == 10:
+    #             p = Process(target=worker_read, args=(i, resource))
+    #         else:
+    #             p = Process(target=worker_write, args=(i, resource))
+    #         p.start()
+    #         jobs.append(p)
+
+    #     # wait until all processes have terminated
+    #     while True:
+    #         time.sleep(0.3)
+    #         all_terminated = not max((job.is_alive() for job in jobs))
+    #         if all_terminated:
+    #             break
+
+    #     # Verify if all locks have been released
+    #     print("Testing if locks have been released...")
+    #     # TODO
+    #     for key in redis_conn.keys():
+    #         if res_name not in key:
+    #             continue
+    #         if (key == 'readcount__{0}'.format(res_name)
+    #                 or key == 'writecount__{0}'.format(res_name)):
+    #             assert(redis_conn[key] == u'0')
+    #         else:
+    #             raise AssertionError("Lock '{0}' has not been released!"
+    #                                  .format(key))
 
 
 def run():

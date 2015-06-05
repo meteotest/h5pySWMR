@@ -32,6 +32,7 @@ import uuid
 import signal
 from functools import wraps
 from collections import defaultdict
+import signal   # TODO remove
 
 import redis
 
@@ -74,31 +75,47 @@ def reader(f):
             readlock = 'readlock__{}'.format(self.file)
             writelock = 'writelock__{}'.format(self.file)
 
-            with redis_lock(redis_conn, mutex3):
-                with redis_lock(redis_conn, readlock):
-                    with redis_lock(redis_conn, mutex1):
-                        readcount_val = redis_conn.incr(readcount, amount=1)
-                        # TODO if program execution ends here, then readcount is
-                        # never decremented!
-                        if readcount_val == 1:
-                            # The first reader sets the write lock (if
-                            # readcount_val > 1 it is already set).
-                            # This locks out all writers.
-                            if not acquire_lock(redis_conn, writelock, WRITELOCK_ID):
-                                raise LockException("could not acquire write lock "
-                                                    " {0}".format(writelock))
+            # Note that try/finally must cover incrementing readcount as well
+            # as acquiring writelock. Otherwise readcount/writelock cannot be
+            # decremented/released if program execution ends, e.g., while
+            # performing reading operation (e.g., because of a SIGTERM signal).
+            readcount_val = None
+            writelock_result = None
             try:
+                with redis_lock(redis_conn, mutex3):
+                    with redis_lock(redis_conn, readlock):
+                        with redis_lock(redis_conn, mutex1):
+                            readcount_val = redis_conn.incr(readcount, amount=1)
+
+                            print("killing myself in 5 seconds...")
+                            time.sleep(5)
+                            os.kill(os.getpid(), signal.SIGTERM)
+
+                            if readcount_val == 1:
+                                # The first reader sets the write lock (if
+                                # readcount_val > 1 it is already set).
+                                # This locks out all writers.
+                                writelock_result = acquire_lock(redis_conn, writelock, WRITELOCK_ID)
+                                if not writelock_result:
+                                    raise LockException("could not acquire write lock "
+                                                        " {0}".format(writelock))
                 result = f(self, *args, **kwargs)  # perform reading operation
                 return result
             finally:
-                pid = os.getpid()
-                # print("@reader PID {0}, finally clause!!!".format(pid))
+                print("@reader PID {0}, finally clause!!!".format(os.getpid()))
+                time.sleep(5)
                 with redis_lock(redis_conn, mutex1):
-                    readcount_val = redis_conn.decr(readcount, amount=1)
-                    if readcount_val == 0:  # no readers left => release write lock
-                        if not release_lock(redis_conn, writelock, WRITELOCK_ID):
-                            raise LockException("write lock {0} was lost"
-                                                .format(writelock))
+                    # check if readcount has been incremented above. If not,
+                    # then we must not decrement it. Also note that, if program
+                    # execution ended before incrementing readcount, then
+                    # writelock cannot have been acquired above.
+                    if readcount_val is not None:
+                        readcount_val = redis_conn.decr(readcount, amount=1)
+                        if readcount_val == 0:  # no readers left => release write lock
+                            if writelock_result is not None:
+                                if not release_lock(redis_conn, writelock, WRITELOCK_ID):
+                                    raise LockException("write lock {0} was lost"
+                                                        .format(writelock))
 
     return func_wrapper
 
@@ -164,6 +181,9 @@ def acquire_lock(conn, lockname, identifier, acq_timeout=ACQ_TIMEOUT,
         timeout: timeout of the lock in seconds. The lock is automatically
             released after *ltime* seconds. Make sure your operation does
             not take longer than the timeout!
+
+    Returns:
+        ``identifier`` on success or False on failure
     """
     end = time.time() + acq_timeout
     while end > time.time():
@@ -187,6 +207,9 @@ def release_lock(conn, lockname, identifier):
         lockname: name of the lock to be released
         identifier: lock will only be released if identifier matches the
             identifier that was provided when the lock was acquired.
+
+    Returns:
+        True on success, False on failure
     """
 
     pipe = conn.pipeline(True)
