@@ -48,9 +48,9 @@ redis_conn = redis.StrictRedis(host='localhost', port=6379, db=0,
                                decode_responses=True)  # important for Python3
 
 
-# TODO set to 20 and 15
-DEFAULT_TIMEOUT = 2000  # seconds
-ACQ_TIMEOUT = 1500
+APPEND_SIGHANDLER = False
+DEFAULT_TIMEOUT = 20  # seconds
+ACQ_TIMEOUT = 15
 
 
 # note that the process releasing the read/write lock may not be the
@@ -81,7 +81,7 @@ def reader(f):
         r = 'r__{}'.format(self.file)
         w = 'w__{}'.format(self.file)
 
-        with handle_exit():
+        with handle_exit(append=APPEND_SIGHANDLER):
             # Note that try/finally must cover incrementing readcount as well
             # as acquiring w. Otherwise readcount/w cannot be
             # decremented/released if program execution ends, e.g., while

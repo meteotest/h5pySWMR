@@ -85,6 +85,8 @@ Limitations
   redis-based synchronization algorithm may end up in an inconsistent state.
   This can result in deadlocks or data corruption.
   Proper process termination (SIGTERM or pressing Ctrl+C) is fine, though.
+* In a multithreaded environment, even process termination through SIGTERM may
+  result in data corruption.
 
 
 Differences between h5py and h5pySWMR

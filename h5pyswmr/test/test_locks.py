@@ -6,7 +6,6 @@ import unittest
 import sys
 import os
 from multiprocessing import Process
-from threading import Thread
 import time
 import random
 import signal
@@ -93,7 +92,7 @@ class TestLocks(unittest.TestCase):
         jobs = []
         NO_WORKERS = 100
         for i in range(NO_WORKERS):
-            if i % 3 == 1:
+            if i % 6 == 1:
                 p = Process(target=worker_write, args=(i, resource))
             else:
                 p = Process(target=worker_read, args=(i, resource))
@@ -109,7 +108,6 @@ class TestLocks(unittest.TestCase):
 
         # Verify if all locks have been released
         print("Testing if locks have been released...")
-        # TODO
         for key in redis_conn.keys():
             if res_name not in key:
                 continue
