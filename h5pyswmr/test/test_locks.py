@@ -49,7 +49,6 @@ class DummyResource(object):
             print(u"✟ Worker {0} (PID {1}) committing suicide..."
                   .format(worker_no, pid))
             os.kill(pid, signal.SIGTERM)
-            print("##### I'm dead, this should not show up! #####")
         else:
             time.sleep(random.random())
 
@@ -71,28 +70,14 @@ class TestLocks(unittest.TestCase):
         """
         Test parallel read/write access
         """
-        # test with threads and processes
-        # print("\n##### Running tests with threads... #####")
-        # TODO Library does not yet work in multithreaded environment
-        # self.run_locks_test(Thread)
-        print("\n ##### Running tests with processes... #####")
-        self.run_locks_test(Process)
-
-    def run_locks_test(self, threadclass):
-        """
-        Run the actual test, either with threads or processes.
-
-        Args:
-            threadclass: class, either threading.Thread or
-                multiprocessing.Process
-        """
-        res_name = 'testresource87234ncsdf'
+        res_name = 'test1234'
         resource = DummyResource(res_name)
 
         def worker_read(i, resource):
             """ reading worker """
+            pid = os.getpid()
             time.sleep(random.random() * 2)
-            print(u"Worker {0} attempts to read...".format(i))
+            print(u"Worker {0}/{1} attempts to read...".format(i, pid))
             if i % 13 == 1:
                 resource.read(i, suicide=True)
             else:
@@ -100,16 +85,15 @@ class TestLocks(unittest.TestCase):
 
         def worker_write(i, resource):
             """ writing worker """
+            pid = os.getpid()
             time.sleep(random.random() * 2.4)
-            print(u"Worker {0} tries to write...".format(i))
+            print(u"Worker {0}/{1} tries to write...".format(i, pid))
             resource.write(i)
 
-        pid = os.getpid()
-        print("\nMain process has PID {0}".format(pid))
         jobs = []
-        NO_WORKERS = 1
+        NO_WORKERS = 100
         for i in range(NO_WORKERS):
-            if i % 6 == 1:
+            if i % 3 == 1:
                 p = Process(target=worker_write, args=(i, resource))
             else:
                 p = Process(target=worker_read, args=(i, resource))
@@ -133,7 +117,7 @@ class TestLocks(unittest.TestCase):
                     or key == 'writecount__{0}'.format(res_name)):
                 assert(redis_conn[key] == u'0')
             else:
-                raise AssertionError("Lock '{0}' has not been released!"
+                raise AssertionError("Lock '{0}' was not released!"
                                      .format(key))
 
     # def test_locks_manywriters(self):
