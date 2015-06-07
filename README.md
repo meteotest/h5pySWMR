@@ -1,6 +1,8 @@
 Parallel (single write multiple read) HDF5 for Python
 =====================================================
 
+v3.0
+
 h5pySWMR is a drop-in replacement for the [h5py](http://www.h5py.org) library.
 h5pySWMR synchronizes read and write access to HDF5 files. It allows parallel
 reading, but writing is serialized.

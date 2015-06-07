@@ -5,7 +5,8 @@ Version 0.3
 
 Bug fixes:
 
-* TODO
+* Readers/writer synchronization is now more robust against unexpected process
+  termination.
 
 Features:
 
