@@ -1,3 +1,17 @@
+Version 0.3
+-----------
+
+2015-06-07
+
+Bug fixes:
+
+* TODO
+
+Features:
+
+* improved documentation of readers/writer synchronization
+
+
 Version 0.2
 -----------
 
@@ -16,4 +30,3 @@ Version 0.1
 -----------
 
 2014-11-27 -- Initial release.
-

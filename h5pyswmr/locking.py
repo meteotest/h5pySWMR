@@ -36,7 +36,6 @@ import time
 import contextlib
 import uuid
 from functools import wraps
-import signal  # for debugging
 
 import redis
 
@@ -71,9 +70,6 @@ def reader(f):
         """
         Wraps reading functions.
         """
-
-        pid = os.getpid()  # TODO for debugging
-
         # names of locks
         mutex3 = 'mutex3__{}'.format(self.file)
         mutex1 = 'mutex1__{}'.format(self.file)
@@ -104,7 +100,6 @@ def reader(f):
 
                             # first reader sets the w lock to block writers
                             if readcount_val == 1:
-                                print("FIRST reader {0} setting {1}".format(pid, w))
                                 if not acquire_lock(redis_conn, w, WRITELOCK_ID):
                                     raise LockException("could not acquire write lock "
                                                         " {0}".format(w))
@@ -119,9 +114,7 @@ def reader(f):
                     # subsequent check atomic.
                     with redis_lock(redis_conn, mutex1):
                         readcount_val = redis_conn.decr(readcount, amount=1)
-                        print("reader {0} readcount == {1}".format(pid, readcount_val))
                         if readcount_val == 0:
-                            print("LAST reader {0} releasing {1}".format(pid, w))
                             if not release_lock(redis_conn, w, WRITELOCK_ID):
                                 # Note that it's possible that, even though
                                 # readcount was > 0, w was not set. This can
@@ -131,7 +124,6 @@ def reader(f):
                                 # TODO what should we do? print a notification?
                                 print("Warning: {0} was lost or was not "
                                       "acquired in the first place".format(w))
-                print("reader {0} DONE".format(pid))
 
     return func_wrapper
 
@@ -146,8 +138,6 @@ def writer(f):
         """
         Wraps writing functions.
         """
-        pid = os.getpid()  # TODO for debugging
-
         # names of locks
         mutex2 = 'mutex2__{}'.format(self.file)
         # note that writecount may be > 1 as it also counts the waiting writers
@@ -180,7 +170,6 @@ def writer(f):
                     with redis_lock(redis_conn, mutex2):
                         writecount_val = redis_conn.decr(writecount, amount=1)
                         if writecount_val == 0:
-                            print("LAST writer {0} releasing {1}".format(pid, r))
                             if not release_lock(redis_conn, r, READLOCK_ID):
                                 # Note that it's possible that, even though
                                 # writecount was > 0, r was not set. This can
@@ -190,7 +179,6 @@ def writer(f):
                                 # TODO what should we do? print a notification?
                                 print("Warning: {0} was lost or was not "
                                       "acquired in the first place".format(r))
-                print("writer {0} DONE".format(pid))
 
     return func_wrapper
 
