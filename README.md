@@ -5,10 +5,11 @@ h5pySWMR is a drop-in replacement for the [h5py](http://www.h5py.org) library.
 h5pySWMR synchronizes read and write access to HDF5 files. It allows parallel
 reading, but writing is serialized.
 With h5pySWMR, you can read and write HDF5 files from parallel
-processes/threads without having to fear data corruption. Note that, with h5py,
-reading and writing from/to a file can result in data corruption.
+processes (with threads, there are some limitations, see below) without having
+to fear data corruption. Note that, with h5py, reading and writing from/to a
+file can result in data corruption.
 
-It works just like h5py:
+Example:
 
 ```python
 # replaces 'from h5py import File'
@@ -36,6 +37,10 @@ from parallel processes.
 
 Yes. Read section 'Limitations', though.
 
+#### Is h5pySWMR Python 3 compatible?
+
+Of course it is.
+
 #### Does h5pySWMR require the MPI version of HDF5?
 
 No.
@@ -61,10 +66,12 @@ only **after** processes are forked). This allows us — using appropriate
 synchronization techniques — to provide parallel reading and **serialized**
 writing, i.e., processes (reading or writing) are forced to wait while a file
 is being written to. This is sometimes called "single write multiple read"
-(SWMR).The synchronization algorithm used is basically an implementation of
-the so-called
-[second readers-writers problem](http://en.wikipedia.org/wiki/Readers%E2%80%93writers_problem#The_second_readers-writers_problem),
-using a [redis](http://www.redis.io)-server for interprocess locking.
+(SWMR). h5pySWMR implements a standard solution to the readers-writers problem,
+giving preference to writers. Check the 1971
+[paper](http://cs.nyu.edu/~lerner/spring10/MCP-S10-Read04-ReadersWriters.pdf)
+by Courtois, Heymans, and Parnas if you're interested.
+A [redis](http://www.redis.io)-server is used to implement inter-process locks
+and counters.
 
 #### Why is it not on pypi?
 
@@ -85,8 +92,10 @@ Limitations
   redis-based synchronization algorithm may end up in an inconsistent state.
   This can result in deadlocks or data corruption.
   Proper process termination (SIGTERM or pressing Ctrl+C) is fine, though.
-* In a multithreaded environment, even process termination through SIGTERM may
-  result in data corruption.
+* Be careful when using h5pySWMR in a multithreaded environment. Signal
+  handling does not work well with threads. Therefore, it is very likely that
+  you end up with pending locks when you terminate threads during I/O
+  operations.
 
 
 Differences between h5py and h5pySWMR
@@ -127,10 +136,10 @@ h5pyswmr.test()
 Prerequisites
 -------------
 
-It probably works with any recent version of Python, h5py, and redis. But I've only tested it with
-Python 2.7/3.4 and the following library versions:
+It probably works with any recent version of Python, h5py, and redis. But I've
+only tested it with Python 2.7/3.4 and the following library versions:
 
-* h5py 2.3.1
+* h5py 2.3.1 to 2.5
 * redis 2.10.3
 
 See http://www.h5py.org for h5py requirements (basically NumPy, Cython and the HDF5 C-library).
