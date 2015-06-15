@@ -147,7 +147,9 @@ class Group(Node):
     @reader
     def keys(self):
         with h5py.File(self.file, 'r') as f:
-            return f[self.path].keys()
+            # w/o list() it does not work with py3 (returns a view on a closed
+            # hdf5 file)
+            return list(f[self.path].keys())
 
     # TODO does not yet work because @reader methods are not reentrant!
     # @reader
