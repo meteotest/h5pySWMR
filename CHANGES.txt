@@ -1,3 +1,13 @@
+Version 0.3.1
+-------------
+
+2015-10-20
+
+Changes:
+
+* Minor modification to setup.py such that installation of requirements
+  is done automatically.
+
 Version 0.3
 -----------
 

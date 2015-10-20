@@ -4,22 +4,29 @@
 Setup script
 """
 
+import os
+
 try:
     from setuptools import setup
 except ImportError:
     from distutils.core import setup
 
-import h5pyswmr
+here = os.path.abspath(os.path.dirname(__file__))
+
+# Get the long description from the README file
+with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
+    long_description = f.read()
 
 setup(
     name='h5pySWMR',
-    version=h5pyswmr.__version__,
+    version="0.3.1",
     author='METEOTEST',
     packages=['h5pyswmr', 'h5pyswmr.test'],
     license='LICENSE.txt',
-    long_description=open('README.md').read(),
+    long_description=long_description,
     install_requires=[
-        "h5py >= 2.3.1",
+        "cython>= 0.23.0",
+        "h5py >= 2.5.0",
         "redis >= 2.10.3"
     ]
 )
