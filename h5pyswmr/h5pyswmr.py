@@ -220,6 +220,8 @@ class File(Group):
         # this is crucial for the @writer annotation
         self.file = args[0]
 
+        # TODO this creates an exclusive lock every time the file is read!!
+
         @writer
         def init(self):
             with h5py.File(*args, **kwargs) as f:
