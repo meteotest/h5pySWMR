@@ -270,6 +270,12 @@ class Dataset(Node):
     def shape(self):
         with h5py.File(self.file, 'r') as f:
             return f[self.path].shape
+            
+    @property
+    @reader
+    def dtype(self):
+        with h5py.File(self.file, 'r') as f:
+            return f[self.path].dtype
 
 
 class AttributeManager(object):
