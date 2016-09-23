@@ -265,6 +265,11 @@ class Dataset(Node):
         with h5py.File(self.file, 'r+') as f:
             f[self.path][slice] = value
 
+    @writer
+    def resize(self, size, axis=None):
+        with h5py.File(self.file, 'r+') as f:
+            f[self.path].resize(size, axis)
+
     @property
     @reader
     def shape(self):

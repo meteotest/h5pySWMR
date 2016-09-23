@@ -115,6 +115,19 @@ class TestAPI(unittest.TestCase):
 
             for key, val in f.items():
                 print(key, val)
+                
+    def test_resize(self):
+        '''
+        Test Dataset.resize() method
+        '''
+        with File(self.filename, 'a') as f:
+            start_size = (10,20)
+            f.create_dataset(name='resizable',shape=start_size, maxshape=(50, 20))
+            dset = f['resizable']
+            new_size = (40, 20)
+            dset.resize(new_size)
+            self.assertEqual(dset.shape, new_size)
+            
 
     def tearDown(self):
         # TODO remove self.filename
