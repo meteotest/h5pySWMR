@@ -19,7 +19,7 @@ with io.open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='h5pySWMR',
-    version="0.3.1",
+    version="0.3.2",
     author='METEOTEST',
     packages=['h5pyswmr', 'h5pyswmr.test'],
     license='LICENSE.txt',

@@ -47,7 +47,7 @@ redis_conn = redis.StrictRedis(host='localhost', port=6379, db=0,
                                decode_responses=True)  # important for Python3
 
 
-APPEND_SIGHANDLER = False
+APPEND_SIGHANDLER = True
 DEFAULT_TIMEOUT = 20  # seconds
 ACQ_TIMEOUT = 15
 
@@ -145,7 +145,7 @@ def writer(f):
         r = 'r__{}'.format(self.file)
         w = 'w__{}'.format(self.file)
 
-        with handle_exit():
+        with handle_exit(append=APPEND_SIGHANDLER):
             writecount_val = None
             try:
                 # mutex2's purpose is to make writecount++ together with
