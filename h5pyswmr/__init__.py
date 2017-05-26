@@ -9,8 +9,12 @@ from __future__ import absolute_import
 
 __version__ = "0.3.3"
 
-from h5pyswmr.h5pyswmr import File, Node, Dataset, Group
-from h5pyswmr.test import test_api, test_locks, test_parallel
+try:
+    from h5pyswmr.h5pyswmr import File, Node, Dataset, Group
+    from h5pyswmr.test import test_api, test_locks, test_parallel
+except ImportError:
+    # imports fail during setup.py
+    pass
 
 
 def test():
