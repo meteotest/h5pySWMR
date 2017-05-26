@@ -11,6 +11,8 @@ try:
 except ImportError:
     from distutils.core import setup
 
+from h5pyswmr import __version__
+
 here = os.path.abspath(os.path.dirname(__file__))
 
 # Get the long description from the README file
@@ -19,8 +21,8 @@ with io.open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='h5pySWMR',
-    version="0.3.2",
-    author='METEOTEST',
+    version=__version__,
+    author='Meteotest',
     packages=['h5pyswmr', 'h5pyswmr.test'],
     license='LICENSE.txt',
     long_description=long_description,

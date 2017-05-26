@@ -275,7 +275,7 @@ class Dataset(Node):
     def shape(self):
         with h5py.File(self.file, 'r') as f:
             return f[self.path].shape
-            
+
     @property
     @reader
     def dtype(self):
@@ -351,4 +351,4 @@ class AttributeManager(object):
         """
         with h5py.File(self.file, 'r') as f:
             node = f[self.path]
-            return node.get(key, defaultvalue)
+            return node.attrs.get(key, defaultvalue)
