@@ -1,3 +1,6 @@
+! ! ! NO LONGER MAINTAINED ! ! !
+
+
 Parallel (single write multiple read) HDF5 for Python
 =====================================================
 
