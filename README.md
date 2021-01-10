@@ -1,5 +1,5 @@
 ! ! ! NO LONGER MAINTAINED ! ! !
-
+Check https://github.com/zarr-developers/zarr-python.
 
 Parallel (single write multiple read) HDF5 for Python
 =====================================================
